@@ -3147,7 +3147,7 @@ body.spectator-mode #powerCardsBtn{display:none !important;}
 
 .landing-inner{
   position:relative;z-index:1;max-width:560px;margin:0 auto;
-  padding:64px 22px 80px;display:flex;flex-direction:column;align-items:center;
+  padding:32px 22px 32px;display:flex;flex-direction:column;align-items:center;
   animation:landingIn .45s cubic-bezier(.2,.9,.25,1.05);
 }
 @keyframes landingIn{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:none;}}
@@ -3327,10 +3327,22 @@ body.spectator-mode #powerCardsBtn{display:none !important;}
 
 .lobby-waiting{font-size:13px;color:#989ab0;text-align:center;padding:6px 0 2px;}
 .lobby-ready-note{font-size:12.5px;color:#f2b84b;text-align:center;padding:4px 0 10px;font-weight:600;}
+/* ---- keyboard shortcut badges — small pill shown inline on a button next to
+   its label (e.g. "Roll dice [Space]"). Deliberately theme-agnostic (uses
+   currentColor/rgba overlays instead of theme vars) so it reads fine on every
+   button color in every theme without three separate copies of this rule. */
+.key-hint{
+  display:inline-flex;align-items:center;justify-content:center;
+  margin-left:8px;padding:1px 6px;min-width:18px;
+  border-radius:5px;font-size:10px;font-weight:800;letter-spacing:.3px;
+  font-family:"Inter",sans-serif;line-height:1.6;
+  background:rgba(0,0,0,.22);box-shadow:0 0 0 1px rgba(255,255,255,.18) inset;
+  color:inherit;opacity:.85;vertical-align:middle;
+}
 .lobby-footer{display:flex;flex-direction:column;gap:10px;margin-top:6px;}
 
 @media (max-width:640px){
-  .landing-inner{padding:44px 16px 64px;}
+  .landing-inner{padding:20px 16px 20px;}
   .landing-logo-text{font-size:28px;}
   .landing-logo-mark{width:48px;height:48px;border-radius:15px;}
   .landing-panel{padding:24px 18px 20px;border-radius:22px;}

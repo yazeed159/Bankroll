@@ -21,7 +21,6 @@
   <div class="landing-inner">
 
     <div class="landing-header">
-      <div class="landing-badge" id="startBadge"><i></i>Live multiplayer</div>
       <div class="landing-logo">
         <div class="landing-logo-mark" id="startBrandMark">
           <svg viewBox="0 0 24 24" width="60%" height="60%" fill="currentColor" aria-hidden="true">
@@ -31,13 +30,6 @@
           </svg>
         </div>
         <div class="landing-logo-text" id="startBrandName">bankroll<span>.game</span></div>
-      </div>
-      <div class="landing-sub">An online property trading game for up to 8 players.<br><b>Each player has their own screen, controls and private turn focus.</b></div>
-      <div class="landing-tags">
-        <span class="landing-tag">&#127922; Up to 8 players</span>
-        <span class="landing-tag">&#127183; Power-up cards</span>
-        <span class="landing-tag">&#127963;&#65039; Live auctions</span>
-        <span class="landing-tag">&#129309; Team alliances</span>
       </div>
     </div>
 
@@ -55,7 +47,7 @@
         <button class="landing-btn subtle" style="width:100%;" onclick="startLocalTest()">&#9889; Test locally (skip code)</button>
       </div>
 
-      <div class="landing-divider" id="joinDivider">join an online game with a code</div>
+      <div class="landing-divider" id="joinDivider">or join with a code</div>
       <div class="landing-join-row" id="joinRow">
         <input class="landing-input room-code-input" id="joinCodeField" placeholder="e.g. K7QX9" maxlength="12" autocapitalize="characters" autocomplete="off" spellcheck="false">
         <button class="landing-btn primary compact" onclick="joinWithCode()">Join</button>
@@ -66,14 +58,11 @@
            from here, so players can't be dropped mid-setup before others have joined. -->
       <div class="lobby" id="lobbySection" style="display:none;">
         <div class="lobby-head">
-          <div>
-            <div class="lobby-eyebrow">Room lobby</div>
-            <div class="lobby-title">Waiting to start</div>
-          </div>
+          <div class="lobby-title">Waiting to start</div>
         </div>
 
         <div class="lobby-code-card" id="startCodeOut" style="display:none;">
-          <div class="lobby-code-label" id="startCodeLabel">Send this room code to up to 7 friends. Each friend joins from their own browser/device.</div>
+          <div class="lobby-code-label" id="startCodeLabel">Room code</div>
           <div class="lobby-code-row">
             <input class="lobby-code-field" id="startCodeField" readonly>
             <button class="landing-btn primary compact" onclick="copyStartCode()">Copy</button>
@@ -554,29 +543,29 @@
         </div>
       </div>
       <div class="board-controls">
-        <button class="roll-btn" id="rollBtn" onclick="rollDice()">Roll dice</button>
-        <button class="roll-btn" id="bailBtn" onclick="payBail()" style="background:var(--gold);color:#241d05;display:none;">Pay $100 bail</button>
-        <button class="roll-btn" id="teleportCancelBtn" onclick="cancelTeleportPick()" style="background:var(--pink);color:#2a0a17;display:none;">Cancel teleport</button>
-        <button class="roll-btn" id="sabotageCancelBtn" onclick="cancelSabotagePick()" style="background:var(--pink);color:#2a0a17;display:none;">Cancel sabotage</button>
-        <button class="roll-btn" id="propertySwapCancelBtn" onclick="cancelPropertySwapPick()" style="background:var(--pink);color:#2a0a17;display:none;">Cancel property swap</button>
-        <button class="roll-btn" id="endTurnBtn" onclick="playerEndTurn()" style="background:var(--pink);color:#2a0a17;display:none;">End turn</button>
+        <button class="roll-btn" id="rollBtn" onclick="rollDice()">Roll dice<span class="key-hint">Space</span></button>
+        <button class="roll-btn" id="bailBtn" onclick="payBail()" style="background:var(--gold);color:#241d05;display:none;">Pay $100 bail<span class="key-hint">R</span></button>
+        <button class="roll-btn" id="teleportCancelBtn" onclick="cancelTeleportPick()" style="background:var(--pink);color:#2a0a17;display:none;">Cancel teleport<span class="key-hint">X</span></button>
+        <button class="roll-btn" id="sabotageCancelBtn" onclick="cancelSabotagePick()" style="background:var(--pink);color:#2a0a17;display:none;">Cancel sabotage<span class="key-hint">X</span></button>
+        <button class="roll-btn" id="propertySwapCancelBtn" onclick="cancelPropertySwapPick()" style="background:var(--pink);color:#2a0a17;display:none;">Cancel property swap<span class="key-hint">X</span></button>
+        <button class="roll-btn" id="endTurnBtn" onclick="playerEndTurn()" style="background:var(--pink);color:#2a0a17;display:none;">End turn<span class="key-hint">E</span></button>
         <div class="buy-inline" id="buyPanel">
           <span class="buy-inline-info">&#127970; <b id="bpName">—</b> &middot; <b id="bpPrice">—</b></span>
-          <button class="buy-btn yes" id="buyYesBtn" onclick="buyDecision(true)">Buy</button>
-          <button class="buy-btn no" onclick="buyDecision(false)">&#128176; Send to auction</button>
+          <button class="buy-btn yes" id="buyYesBtn" onclick="buyDecision(true)">Buy<span class="key-hint">Q</span></button>
+          <button class="buy-btn no" id="buyNoBtn" onclick="buyDecision(false)">&#128176; Send to auction<span class="key-hint">A</span></button>
         </div>
         <div class="roll-result" id="rollResult">Delta's turn — roll the dice</div>
         <span class="turn-timer-badge" id="turnTimerBadge"></span>
         <button class="roll-btn" id="auctionBtn" onclick="toggleAuctionPanel()" style="background:var(--violet);color:#1c1533;display:none;">&#128176; Auction</button>
         <button class="roll-btn" id="loanBtn" onclick="toggleLoanPanel()" style="background:var(--gold);color:#241d05;display:none;">&#127974; Loan</button>
         <button class="roll-btn" id="sideBetBtn" onclick="toggleSideBetPanel()" style="background:#c58af0;color:#1c0a2e;display:none;">&#127922; Side bet</button>
-        <button class="roll-btn" id="powerCardsBtn" onclick="openPowerCards()" style="background:var(--cyan);color:#04231f;" title="View, use, trade, or relay your power cards">&#127183; <span id="powerCardsBtnLabel">Cards</span></button>
+        <button class="roll-btn" id="powerCardsBtn" onclick="openPowerCards()" style="background:var(--cyan);color:#04231f;" title="View, use, trade, or relay your power cards">&#127183; <span id="powerCardsBtnLabel">Cards</span><span class="key-hint">C</span></button>
       </div>
       <div class="buy-panel" id="buyoutPanel">
         <div class="bp-info">Buy <b id="buyoutName">—</b> from <b id="buyoutOwner">—</b>?<br>Price: <b id="buyoutPrice">—</b></div>
         <div class="buy-actions">
-          <button class="buy-btn yes" onclick="buyoutDecision(true)">Buy it out</button>
-          <button class="buy-btn no" onclick="buyoutDecision(false)">No thanks</button>
+          <button class="buy-btn yes" id="buyoutYesBtn" onclick="buyoutDecision(true)">Buy it out<span class="key-hint">Q</span></button>
+          <button class="buy-btn no" id="buyoutNoBtn" onclick="buyoutDecision(false)">No thanks<span class="key-hint">A</span></button>
         </div>
       </div>
       <div class="buy-panel" id="managePanel" style="flex-direction:column;align-items:stretch;max-width:560px;"></div>
@@ -623,6 +612,7 @@
 
       <div class="bottom-btns">
         <div class="bb" id="fullscreenBtn" onclick="toggleFullscreen()">&#9974; <span id="fullscreenBtnLabel">Fullscreen</span></div>
+        <div class="bb" id="keyHintsBtn" onclick="showKeyHintsToast()" title="Space roll · E end turn · Q buy · A auction/decline · R bail · X cancel · C cards — all left-hand, no reaching for Enter or the arrows">&#9000; Controls</div>
       </div>
     </div>
   </div>

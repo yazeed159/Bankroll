@@ -125,10 +125,17 @@
     }
   });
 
-  /* ---------- 4) keyboard shortcuts: Space = roll, Enter = end turn ----------
+  /* ---------- 4) keyboard shortcuts — left hand only ----------
+     Every shortcut lives in the QWERASDFZXC cluster plus Space, all reachable
+     from a hand resting near the home row without stretching to Enter, the
+     arrow keys, or anywhere on the right side of the board — so the other
+     hand (mouse, controller, whatever) never has to touch the keyboard.
+       Space - roll dice           Q - buy / buy it out
+       E     - end turn            A - send to auction / decline
+       R     - pay bail            X - cancel a pending pick (teleport etc.)
+       C     - open/close power cards
      Only fires during active gameplay — never while a modal is open or while
-     typing in any text field (chat, trade amounts, room code, etc.), so it
-     can't hijack normal Space/Enter behavior anywhere else. */
+     typing in any text field (chat, trade amounts, room code, etc.). */
   function isTypingTarget(el){
     if(!el) return false;
     const tag = el.tagName;
@@ -147,10 +154,27 @@
     if(isTypingTarget(e.target)) return;
     if(e.metaKey || e.ctrlKey || e.altKey) return;
 
-    if(e.key === ' ' || e.code === 'Space'){
+    const key = e.key.toLowerCase();
+    if(key === ' ' || e.code === 'Space'){
       if(clickIfActionable(document.getElementById('rollBtn'))) e.preventDefault();
-    }else if(e.key === 'Enter'){
+    }else if(key === 'e'){
       if(clickIfActionable(document.getElementById('endTurnBtn'))) e.preventDefault();
+    }else if(key === 'q'){
+      // whichever "yes" action is currently on screen — buying a fresh
+      // property or buying out an opponent's — never both at once
+      if(clickIfActionable(document.getElementById('buyYesBtn'))) e.preventDefault();
+      else if(clickIfActionable(document.getElementById('buyoutYesBtn'))) e.preventDefault();
+    }else if(key === 'a'){
+      if(clickIfActionable(document.getElementById('buyNoBtn'))) e.preventDefault();
+      else if(clickIfActionable(document.getElementById('buyoutNoBtn'))) e.preventDefault();
+    }else if(key === 'r'){
+      if(clickIfActionable(document.getElementById('bailBtn'))) e.preventDefault();
+    }else if(key === 'x'){
+      if(clickIfActionable(document.getElementById('teleportCancelBtn'))) e.preventDefault();
+      else if(clickIfActionable(document.getElementById('sabotageCancelBtn'))) e.preventDefault();
+      else if(clickIfActionable(document.getElementById('propertySwapCancelBtn'))) e.preventDefault();
+    }else if(key === 'c'){
+      if(clickIfActionable(document.getElementById('powerCardsBtn'))) e.preventDefault();
     }
   });
 

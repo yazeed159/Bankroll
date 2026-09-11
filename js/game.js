@@ -3081,6 +3081,27 @@ const TOAST_RULES = [
   [/breaks out of jail|stays in jail|runs out of patience/, 'tiny', '🚔'],
   [/passes go and collects|lands exactly on go/, 'tiny', '💰'],
   [/pays \$[\d,]+ rent\b/, 'tiny', '💰'],
+  // ---- extra coverage: mostly power-card plays and other small moments that
+  // used to only show up if you scrolled the history log. 'tiny' = quick
+  // in-and-out flash for the minor stuff; 'toast' = a beat longer for things
+  // that actually swing the board (a blocked rent payment, a card taken off
+  // another player, a swap of places/properties).
+  [/wagers \$[\d,]+ against/, 'tiny', '🎲'],
+  [/side bet/, 'toast', '🎲'],
+  [/shield blocks the \$[\d,]+ rent/, 'toast', '🛡️'],
+  [/raises a property shield|raises a shared shield/, 'tiny', '🛡️'],
+  [/uses a rent doubler/, 'tiny', '💹'],
+  [/arms pooled payday/, 'tiny', '📣'],
+  [/plays high-rise hustle/, 'tiny', '🏗️'],
+  [/plays a teleport/, 'toast', '🌀'],
+  [/plays a property swap/, 'toast', '🔄'],
+  [/plays a swap card/, 'toast', '🔄'],
+  [/plays a property freeze/, 'toast', '❄️'],
+  [/plays sabotage/, 'toast', '🧨'],
+  [/plays fast forward/, 'tiny', '⏩'],
+  [/plays a get out of jail free/, 'tiny', '🔑'],
+  [/relays a .+ card to teammate/, 'tiny', '📤'],
+  [/property freeze has worn off/, 'tiny', '❄️'],
 ];
 function classifyToastTier(html){
   const t = html.replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim().toLowerCase();
@@ -3137,6 +3158,13 @@ function showToast(payload){
   }, dur);
 }
 
+/* the sidebar's "⌨ Controls" pill has a hover title with the full shortcut
+   legend for desktop, but touch devices can't hover — tapping it fires this
+   instead, reusing the same toast pill so it fits right in with everything
+   else flashing on the board. */
+function showKeyHintsToast(){
+  showToast({id:++toastSeq, html:'<b>Space</b> roll &middot; <b>E</b> end turn &middot; <b>Q</b> buy &middot; <b>A</b> auction/decline &middot; <b>R</b> bail &middot; <b>X</b> cancel &middot; <b>C</b> cards', glyph:'⌨', tier:'toast'});
+}
 function markOwnership(i, color){
   const face = ownFaceEls[i];
   if(!face) return;
@@ -8175,7 +8203,7 @@ function claimHostPeer(PeerCtor,attempt){
     NET.roomCode=code; NET.ready=true;
     applyPlayerIdentity(); // lock in the host's own typed name/color before the lobby list renders it
     const f=document.getElementById('startCodeField'); if(f)f.value=NET.roomCode;
-    const l=document.getElementById('startCodeLabel'); if(l)l.textContent='Send this room code to up to 7 friends. Each friend joins from their own screen. Keep this page open, then press Start once everyone you\'re expecting has joined.';
+    const l=document.getElementById('startCodeLabel'); if(l)l.textContent='Room code';
     enterLobbyUI();
     setNetStatus('Room ready • 1/8',true);
     startHostSync();
