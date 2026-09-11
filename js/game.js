@@ -7728,8 +7728,30 @@ function resetToMenuState(){
   exitLobbyUI();
   setNetStatus('Offline',false);
 }
-function makeRoomCode(id){return 'SKY8|'+id;}
-function parseRoomCode(code){const raw=String(code||'').trim(),parts=raw.split('|');if(parts.length===2&&parts[0]==='SKY8')return parts[1];return raw&&!raw.includes(' ')?raw:null;}
+/* ---- short, human-friendly room codes ----
+   PeerJS defaults to a random UUID as the peer id, which made the shareable
+   "room code" a long unreadable string. Instead the host claims a short
+   5-character code (letters/digits only, no easily-confused 0/O/1/I/L) as
+   its actual PeerJS id, so the code people read aloud/type/paste IS the
+   connection id — no separate lookup table needed. */
+const ROOM_CODE_CHARS='ABCDEFGHJKMNPQRSTUVWXYZ23456789'; // no 0/O/1/I/L
+const ROOM_CODE_LEN=5;
+const ROOM_ID_PREFIX='bkrl-';
+function randomRoomCode(){let s='';for(let i=0;i<ROOM_CODE_LEN;i++)s+=ROOM_CODE_CHARS[Math.floor(Math.random()*ROOM_CODE_CHARS.length)];return s;}
+function roomCodeToPeerId(code){return ROOM_ID_PREFIX+String(code).toLowerCase();}
+// Used only for the rare post-host-migration case, where the newly-promoted
+// host is reusing its own already-open (auto-generated, non-short) peer id
+// rather than claiming a fresh short code — see becomeNewHostAfterMigration.
+function makeRoomCode(id){return id;}
+function parseRoomCode(code){
+  const raw=String(code||'').trim();
+  if(!raw) return null;
+  const legacy=raw.match(/^SKY8\|(.+)$/i); // old long-form codes from earlier builds
+  if(legacy) return legacy[1];
+  const cleaned=raw.replace(/[\s-]/g,'');
+  if(/^[A-Za-z0-9]{4,8}$/.test(cleaned)) return roomCodeToPeerId(cleaned);
+  return raw.includes(' ')?null:raw; // fallback: treat as a literal peer id (e.g. a migration code)
+}
 /* ---- rejoin tokens: let a guest whose connection drops get their own seat (and
    balance/properties/position, untouched) back instead of being treated as a brand
    new joiner. The host hands out a fresh one-time token with every 'welcome' and
@@ -8122,45 +8144,62 @@ async function setupHostPeer(){
   disconnectNet(); NET.intentional=false; NET.host=true; NET.online=true; NET.activeIds=['p1']; setNetStatus('Loading online connection…',false);
   try{
     const PeerCtor=await window.__loadPeerJS();
-    setNetStatus('Creating room…',false);
-    const peer=new PeerCtor(); NET.peer=peer;
-    let opened=false;
-    const timeout=setTimeout(()=>{
-      if(!opened){
-        try{peer.destroy();}catch(e){}
-        NET.peer=null; NET.online=false; NET.host=false; NET.ready=false;
-        setNetStatus('Could not create room — check internet',false);
-        alert('The online connection could not be created. Make sure the browser has internet access and that PeerJS is not blocked by an extension/firewall.');
-      }
-    },15000);
-    peer.on('open',id=>{
-      opened=true; clearTimeout(timeout);
-      NET.roomCode=makeRoomCode(id); NET.ready=true;
-      applyPlayerIdentity(); // lock in the host's own typed name/color before the lobby list renders it
-      const f=document.getElementById('startCodeField'); if(f)f.value=NET.roomCode;
-      const l=document.getElementById('startCodeLabel'); if(l)l.textContent='Send this room code to up to 7 friends. Each friend joins from their own screen. Keep this page open, then press Start once everyone you\'re expecting has joined.';
-      enterLobbyUI();
-      setNetStatus('Room ready • 1/8',true);
-      startHostSync();
-    });
-    peer.on('connection',conn=>{
-      if(NET.conns.size>=7){try{conn.close()}catch(e){};return;}
-      NET.conns.set(conn.peer,conn);
-      conn.on('open',()=>setNetStatus(`Connected • ${Math.min(8,NET.conns.size+1)}/8`,true));
-      wireHostConnection(conn);
-    });
-    peer.on('error',e=>{
-      clearTimeout(timeout); console.error('PeerJS error:',e);
-      setNetStatus(`Room error: ${e?.type||'connection failed'}`,false);
-      if(!opened){NET.online=false;NET.host=false;NET.ready=false;}
-    });
-    peer.on('disconnected',()=>setNetStatus('Signaling server disconnected',false));
-    peer.on('close',()=>{if(opened)setNetStatus('Room closed',false);});
+    claimHostPeer(PeerCtor,0);
   }catch(e){
     console.error(e); NET.online=false; NET.host=false; NET.ready=false;
     setNetStatus('PeerJS unavailable',false);
     alert('Online multiplayer could not start.\n\n'+(e?.message||e));
   }
+}
+// Claims a short room code as the host's actual PeerJS id. Short codes are
+// cheap to guess-collide with someone else's in-progress room (or, in rare
+// cases, an unrelated PeerJS app sharing the same public broker), so a
+// handful of attempts with a freshly-rolled code covers that before giving
+// up and showing a real error.
+const ROOM_CODE_MAX_ATTEMPTS=6;
+function claimHostPeer(PeerCtor,attempt){
+  setNetStatus('Creating room…',false);
+  const code=randomRoomCode();
+  const peer=new PeerCtor(roomCodeToPeerId(code)); NET.peer=peer;
+  let opened=false, retrying=false;
+  const timeout=setTimeout(()=>{
+    if(!opened&&!retrying){
+      try{peer.destroy();}catch(e){}
+      NET.peer=null; NET.online=false; NET.host=false; NET.ready=false;
+      setNetStatus('Could not create room — check internet',false);
+      alert('The online connection could not be created. Make sure the browser has internet access and that PeerJS is not blocked by an extension/firewall.');
+    }
+  },15000);
+  peer.on('open',id=>{
+    opened=true; clearTimeout(timeout);
+    NET.roomCode=code; NET.ready=true;
+    applyPlayerIdentity(); // lock in the host's own typed name/color before the lobby list renders it
+    const f=document.getElementById('startCodeField'); if(f)f.value=NET.roomCode;
+    const l=document.getElementById('startCodeLabel'); if(l)l.textContent='Send this room code to up to 7 friends. Each friend joins from their own screen. Keep this page open, then press Start once everyone you\'re expecting has joined.';
+    enterLobbyUI();
+    setNetStatus('Room ready • 1/8',true);
+    startHostSync();
+  });
+  peer.on('connection',conn=>{
+    if(NET.conns.size>=7){try{conn.close()}catch(e){};return;}
+    NET.conns.set(conn.peer,conn);
+    conn.on('open',()=>setNetStatus(`Connected • ${Math.min(8,NET.conns.size+1)}/8`,true));
+    wireHostConnection(conn);
+  });
+  peer.on('error',e=>{
+    console.error('PeerJS error:',e);
+    if(!opened&&e?.type==='unavailable-id'&&attempt<ROOM_CODE_MAX_ATTEMPTS){
+      retrying=true; clearTimeout(timeout);
+      try{peer.destroy();}catch(err){}
+      claimHostPeer(PeerCtor,attempt+1);
+      return;
+    }
+    clearTimeout(timeout);
+    setNetStatus(`Room error: ${e?.type||'connection failed'}`,false);
+    if(!opened){NET.online=false;NET.host=false;NET.ready=false;}
+  });
+  peer.on('disconnected',()=>setNetStatus('Signaling server disconnected',false));
+  peer.on('close',()=>{if(opened)setNetStatus('Room closed',false);});
 }
 // Deterministic so every remaining guest reaches the same answer independently with
 // zero coordination: sort every pid the dying host's last-known roster told us about
