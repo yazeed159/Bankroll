@@ -4437,20 +4437,27 @@ function showTileInfo(idx){
     const siblingBuilt = t.group && groupTiles(t.group).some(x=>x!==t && (x.houses||0)>0); // a DIFFERENT property in the same group has a building — always blocks buyout, independent of buyoutIncludesHouses (which only ever governed houses on THIS tile)
     const builtOn = siblingBuilt || (!CONFIG.buyoutIncludesHouses && (t.houses||0)>0);
     const isFrozen = (t.frozenTurns||0)>0;
+    // Buyout price is quoted here unconditionally (whenever buyouts are enabled at
+    // all) so every owned property card tells you what it'd cost to buy out from
+    // its owner, whether or not you're currently standing on it / it's your turn —
+    // only the actual buy button stays gated behind those conditions below.
+    const cost = price * CONFIG.buyoutMultiplier;
+    if(CONFIG.buyoutEnabled){
+      actionsHtml = `<div class="ti-hint">Buyout price: <b>$${fmt(cost)}</b> (${CONFIG.buyoutMultiplier}&times; price)</div>`;
+    }
     if(myTurn && me.pos===idx && CONFIG.buyoutEnabled && !builtOn && !isFrozen){
-      const cost = price * CONFIG.buyoutMultiplier;
       const afford = me.balance >= cost;
-      actionsHtml = `<button class="buy-btn yes" ${afford?'':'disabled'} onclick="buyoutFromInfo(${idx})">Buy it out for $${fmt(cost)}</button>`;
+      actionsHtml += `<button class="buy-btn yes" ${afford?'':'disabled'} onclick="buyoutFromInfo(${idx})">Buy it out for $${fmt(cost)}</button>`;
     } else if(!CONFIG.buyoutEnabled){
-      actionsHtml = `<div class="ti-hint">Buyouts are off in this game's rules — propose a trade instead, or turn buyouts on from Rules &amp; setup.</div>`;
+      actionsHtml += `<div class="ti-hint">Buyouts are off in this game's rules — propose a trade instead, or turn buyouts on from Rules &amp; setup.</div>`;
     } else if(myTurn && me.pos===idx && isFrozen){
-      actionsHtml = `<div class="ti-hint">&#10052;&#65039; ${owner.name}'s property is frozen for ${t.frozenTurns} more turn${t.frozenTurns===1?'':'s'} — it can't be bought out until that wears off.</div>`;
+      actionsHtml += `<div class="ti-hint">&#10052;&#65039; ${owner.name}'s property is frozen for ${t.frozenTurns} more turn${t.frozenTurns===1?'':'s'} — it can't be bought out until that wears off.</div>`;
     } else if(myTurn && me.pos===idx && siblingBuilt){
-      actionsHtml = `<div class="ti-hint">${owner.name} has built on another property in this group — none of the group can be bought out until every house/hotel in it is sold back.</div>`;
+      actionsHtml += `<div class="ti-hint">${owner.name} has built on another property in this group — none of the group can be bought out until every house/hotel in it is sold back.</div>`;
     } else if(myTurn && me.pos===idx && builtOn){
-      actionsHtml = `<div class="ti-hint">${owner.name} has built on this property — it can't be bought out until the houses are gone.</div>`;
+      actionsHtml += `<div class="ti-hint">${owner.name} has built on this property — it can't be bought out until the houses are gone.</div>`;
     } else if(!(myTurn && me.pos===idx)){
-      actionsHtml = `<div class="ti-hint">Land on this tile on your turn to buy it out from ${owner.name}.</div>`;
+      actionsHtml += `<div class="ti-hint">Land on this tile on your turn to buy it out from ${owner.name}.</div>`;
     }
     actionsHtml += `<button class="buy-btn no" onclick="closeTileInfo();openTrade('${t.owner}');">&#8646; Propose a trade</button>`;
   }
@@ -6635,39 +6642,18 @@ document.getElementById('msgTime').textContent =
 
 // Remembers which player cards (and in what order) were last painted, so
 // renderPlayerCards() can skip rebuilding the DOM when nothing about the
-// active-player set actually changed. Declared here (before buildColorPickers()
-// is invoked below) because buildColorPickers() synchronously calls
-// renderPlayerCards(), which reads this variable — declaring it later with
-// `let` left it in the temporal dead zone at that call time.
+// active-player set actually changed. Declared here (before renderPlayerCards()
+// is invoked below), since that call reads this variable — declaring it later
+// with `let` left it in the temporal dead zone at that call time.
 let __lastRenderedCardIds=null;
 
-buildColorPickers();
+renderPlayerCards();
 
-/* ============ START MENU / RULE CONFIG / SHARE CODE ============ */
-
-function buildColorPickers(){
-  const root=document.getElementById('setupPlayers'); if(!root) return;
-  root.innerHTML=`<div class="setup-player"><div class="setup-label">Your name</div><input type="text" class="chat-input setup-name" id="nameInput-p1" placeholder="${PLAYER_DEFAULTS[0][0]}" maxlength="16" oninput="PLAYER_SETUP['p1'].name=this.value"><div class="setup-label" style="margin-top:10px;">Your car</div><div class="car-pick-row" id="carRow-p1"></div></div>`;
-  const carRow=document.getElementById('carRow-p1');
-  carRow.innerHTML=CAR_LIST.map(({key,label})=>`<button type="button" class="car-pick" data-car="${key}" onclick="selectSetupCar('p1','${key}')"><model-viewer class="car-pick-mv" src="${CAR_MODELS[key]}" disable-zoom interaction-prompt="none" camera-orbit="-35deg 72deg auto" field-of-view="28deg" exposure="1.2" environment-image="neutral" loading="eager"></model-viewer><span class="car-pick-label">${label}</span></button>`).join('');
-  refreshSetupSwatches();
-  renderPlayerCards();
-}
-function refreshSetupSwatches(){
-  const carRow=document.getElementById('carRow-p1'); if(!carRow)return;
-  // Defensive, not just cosmetic: this only ever runs before a room exists (the
-  // whole setup screen is hidden once the lobby opens), so in practice nobody
-  // else is active yet here — but if that ever changes, still refuse to let the
-  // local player pick a car another active player already holds.
-  const taken=new Set(PLAYER_IDS.filter(pid=>pid!=='p1'&&players[pid]&&players[pid].active).map(pid=>players[pid].car));
-  [...carRow.children].forEach(btn=>{
-    const car=btn.dataset.car, isTaken=taken.has(car)&&PLAYER_SETUP.p1.car!==car;
-    btn.classList.toggle('selected',PLAYER_SETUP.p1.car===car);
-    btn.disabled=isTaken;
-    btn.title=isTaken?'Already taken by another player':'';
-  });
-}
-function selectSetupCar(pid,car){PLAYER_SETUP[pid].car=car; PLAYER_SETUP[pid].color=colorForCar(car); refreshSetupSwatches(); if(tokenEls[pid])updateTokenAppearance(pid,PLAYER_SETUP[pid].color,car); renderPlayerCards();}
+/* ============ START MENU / RULE CONFIG / SHARE CODE ============
+   Name and car are no longer chosen on this pre-room screen — #setupPlayers
+   stays empty. Both are picked live inside the lobby instead (see
+   renderLobbyPlayers/changeNameLobby/changeCarLobby below), which now every
+   flow passes through, including local test (see startLocalTest). */
 /* lets a player change their own car while sitting in the online lobby — added so
    everyone can actually SEE which cars are taken and pick a free one themselves,
    instead of only being told after the fact (via the colorWasTaken note above)
@@ -6880,7 +6866,13 @@ function copyStartCode(){
   else document.execCommand('copy');
 }
 function startLocalTest(){
-  beginGame();
+  // local test now goes through the same lobby as an online room (just
+  // offline, host-only, solo) instead of jumping straight onto the board —
+  // that's the only place name/car are editable, so it needs one too.
+  NET.online=false; NET.host=true; NET.activeIds=['p1'];
+  PLAYER_SETUP.p1.name='test';
+  applyPlayerIdentity();
+  enterLobbyUI();
 }
 function joinWithCode(){
   const codeField = document.getElementById('joinCodeField');
@@ -7297,6 +7289,9 @@ function confirmBackToMenu(){
   }else if(NET.online&&!NET.host){
     if(NET.started) openConfirm('Leave this game?','You\'ll return to the main menu. The other players can keep playing without you.',leaveToMenuSelf,'Yes, leave');
     else openConfirm('Leave this lobby?','You\'ll return to the main menu.',leaveToMenuSelf,'Yes, leave');
+  }else if(document.getElementById('lobbySection').style.display!=='none'){
+    // offline (local test) lobby, not yet started — nothing to "end" yet
+    openConfirm('Leave lobby?','You\'ll return to the main menu.',()=>{showStartOverlay();},'Yes, leave');
   }else{
     openConfirm('Back to menu?','This will end the current game.',()=>{showStartOverlay();},'Yes, back to menu');
   }
@@ -7335,8 +7330,9 @@ function returnToLobbyForAll(){
     enterLobbyUI();
     if(NET.host) sendState();
   } else {
-    // local/offline test games never go through the lobby screen in the first place
-    // (see startLocalTest) — just jump straight into a fresh game the same way.
+    // local/offline test: "Play again" jumps straight into a fresh game rather
+    // than back through the lobby — name/car were already locked in for this
+    // session when the lobby ran at startLocalTest(), no need to redo that.
     beginGame();
   }
 }
@@ -7434,7 +7430,7 @@ function enterLobbyUI(){
   document.getElementById('joinRow').style.display='none';
   document.getElementById('rulesBtn').style.display=NET.host?'':'none';
   document.getElementById('lobbySection').style.display='';
-  document.getElementById('startCodeOut').style.display=NET.host?'block':'none';
+  document.getElementById('startCodeOut').style.display=(NET.host&&NET.online)?'block':'none';
   document.getElementById('lobbyStartBtn').style.display=NET.host?'':'none';
   document.getElementById('lobbyWaitingText').style.display=NET.host?'none':'';
   const note=document.getElementById('lobbyColorNote');
@@ -7507,20 +7503,49 @@ function renderLobbyPlayers(){
     // Locked (all buttons disabled) once you've marked yourself ready, mirroring
     // changeCarLobby's own guard, so your identity can't drift after you've told
     // everyone else you're set.
-    const carRowHtml = (isYou && NET.online) ? `<div class="car-pick-row" style="margin:4px 0 12px;">${CAR_LIST.map(({key,label})=>{
-      const isMine = p.car===key;
-      const takenByOther = PLAYER_IDS.some(x=>x!==pid && players[x] && players[x].active && players[x].car===key);
-      const disabled = p.ready || (!isMine&&takenByOther);
-      const title = p.ready ? 'Press "Not ready" to change cars' : ((!isMine&&takenByOther) ? `Already taken by ${escapeHtml((PLAYER_IDS.map(x=>players[x]).find(o=>o.active&&o.car===key)||{}).name||'another player')}` : '');
-      return `<button type="button" class="car-pick ${isMine?'selected':''}" ${disabled?`disabled title="${title}"`:''} onclick="changeCarLobby('${pid}','${key}')"><model-viewer class="car-pick-mv" src="${CAR_MODELS[key]}" disable-zoom interaction-prompt="none" camera-orbit="-35deg 72deg auto" field-of-view="28deg" exposure="1.2" environment-image="neutral" loading="eager"></model-viewer><span class="car-pick-label">${label}</span></button>`;
-    }).join('')}</div>` : '';
-    return `<div class="lobby-player-row"><span class="lobby-player-dot" style="background:${p.color}"></span>${nameHtml}${tags}${teamCtl}${readyBtn}${kickBtn}</div>${carRowHtml}`;
+    const carRowHtml = isYou ? `<div class="car-pick-row" id="carPickRow" data-pid="${pid}"></div>` : '';
+    return `<div class="lobby-player-row">${kickBtn}<div class="lobby-player-top"><span class="lobby-player-dot" style="background:${p.color}"></span>${nameHtml}${readyBtn}</div><div class="lobby-player-meta">${tags}${teamCtl}</div>${carRowHtml}</div>`;
   }).join('');
+  syncCarPickRow();
   if(nameInputHadFocus){
     const el=document.getElementById('lobbyNameInput');
     if(el){ el.focus(); if(savedCaret!=null){ try{ el.setSelectionRange(savedCaret,savedCaret); }catch(e){} } }
   }
   updateLobbyStartBtnState();
+}
+/* The car picker's <model-viewer> elements load a full 3D model each, and
+   renderLobbyPlayers() used to rebuild them from raw HTML on every single
+   call — which happens on every keystroke while typing your name AND on
+   every ~300ms host sync tick while the lobby is open. That meant the whole
+   row of 3D cars was tearing down and reloading from scratch continuously:
+   visible flicker, wasted bandwidth re-fetching the same models, and a
+   generally "unstable" feeling lobby. Now the row's markup (including the
+   model-viewer tags) is built exactly once; every later render just patches
+   the disabled/selected/title state of the existing buttons in place and
+   never touches the model-viewer nodes themselves, so they load once and
+   stay put for the rest of the lobby session. */
+function syncCarPickRow(){
+  const row = document.getElementById('carPickRow');
+  if(!row) return;
+  const pid = row.dataset.pid;
+  const p = players[pid];
+  if(!p){ row.innerHTML=''; return; }
+  if(row.dataset.builtFor !== pid || row.childElementCount===0){
+    row.dataset.builtFor = pid;
+    row.innerHTML = CAR_LIST.map(({key,label})=>
+      `<button type="button" class="car-pick" data-car="${key}" onclick="changeCarLobby('${pid}','${key}')"><model-viewer class="car-pick-mv" src="${CAR_MODELS[key]}" disable-zoom interaction-prompt="none" camera-orbit="-35deg 72deg auto" field-of-view="28deg" exposure="1.2" environment-image="neutral" loading="eager"></model-viewer><span class="car-pick-label">${label}</span></button>`
+    ).join('');
+  }
+  row.querySelectorAll('.car-pick').forEach(btn=>{
+    const key = btn.dataset.car;
+    const isMine = p.car===key;
+    const takenByOther = PLAYER_IDS.some(x=>x!==pid && players[x] && players[x].active && players[x].car===key);
+    const disabled = p.ready || (!isMine&&takenByOther);
+    const title = p.ready ? 'Press "Not ready" to change cars' : ((!isMine&&takenByOther) ? `Already taken by ${escapeHtml((PLAYER_IDS.map(x=>players[x]).find(o=>o.active&&o.car===key)||{}).name||'another player')}` : '');
+    btn.classList.toggle('selected', isMine);
+    if(disabled){ btn.setAttribute('disabled',''); btn.setAttribute('title',title); }
+    else{ btn.removeAttribute('disabled'); if(title) btn.setAttribute('title',title); else btn.removeAttribute('title'); }
+  });
 }
 // exposed globally — code declared outside this module (changeCarLobby,
 // changeNameLobby, setReadyLobby, and the rules-menu save handler's live
@@ -7844,7 +7869,27 @@ function executeHostCommand(msg,fromPid){if(!NET.host||!msg||msg.type!=='cmd')re
   // player card) happens to trigger a refresh.
   refreshUI();
 }sendState();}
-function sendCommand(name,args){if(!NET.online||NET.host||!NET.ready)return false;const c=NET.conns.values().next().value;if(!c?.open)return false;try{c.send({type:'cmd',name,args:Array.isArray(args)?args:[]});return true}catch(e){setNetStatus('Connection lost',false);return false;}}
+function sendCommand(name,args,retriesLeft){if(!NET.online||NET.host)return false;
+  const msg={type:'cmd',name,args:Array.isArray(args)?args:[]};
+  const c=NET.conns.values().next().value;
+  // NET.ready flips true the instant our data channel opens (see setupGuestPeer),
+  // which can still land a beat before the channel is actually ready to send, or
+  // before a reconnect after a brief drop has fully settled. Previously any send
+  // attempted in that window was just dropped with no feedback and no retry — from
+  // the lobby that looked exactly like "pressing ready did nothing." Retry a few
+  // times on a short delay instead of giving up on the first miss.
+  if(!NET.ready || !c?.open){
+    const left = retriesLeft==null ? 5 : retriesLeft;
+    if(left>0) setTimeout(()=>sendCommand(name,args,left-1), 250);
+    else setNetStatus('Connection lost',false);
+    return false;
+  }
+  try{c.send(msg);return true}catch(e){
+    const left = retriesLeft==null ? 5 : retriesLeft;
+    if(left>0){ setTimeout(()=>sendCommand(name,args,left-1), 250); return false; }
+    setNetStatus('Connection lost',false); return false;
+  }
+}
 function assignPlayer(conn,peerId,info){
   const used=new Set([NET.ownPid,...NET.peerToPlayer.values()]);
   const pid=PLAYER_IDS.find(x=>!used.has(x));
@@ -8313,7 +8358,17 @@ async function setupGuestPeer(hostId){
   }catch(e){NET.online=false;setNetStatus('PeerJS unavailable',false);alert('Online multiplayer could not start.\n\n'+(e?.message||e));}
 }
 const originalStartNewGame=window.startNewGame, originalJoin=window.joinWithCode;
-ACTIONS.forEach(name=>{original[name]=window[name];window[name]=function(...args){if(NET.online&&!NET.host&&!NET.executing){if(name==='startOwnAuction'){const pid=youAre;const checks=(Array.isArray(args[1])?args[1]:[]).map(Number).filter(Number.isInteger);const startBid=Math.max(10,Number(args[2])||10);const timerSec=Number(args[3])||CONFIG.auctionTimerSec;sendCommand(name,[pid,checks,startBid,timerSec]);return;}if(name==='startCardAuction'){const pid=youAre;const cardType=String(args[1]||'');const startBid=Math.max(10,Number(args[2])||10);const timerSec=Number(args[3])||CONFIG.auctionTimerSec;sendCommand(name,[pid,cardType,startBid,timerSec]);return;}if(name==='startCombinedAuction'){const pid=youAre;const items=(Array.isArray(args[1])?args[1]:[]).map(v=>(typeof v==='string'&&v.indexOf('card:')===0)?v:Number(v)).filter(v=>typeof v==='string'||Number.isInteger(v));const startBid=Math.max(10,Number(args[2])||10);const timerSec=Number(args[3])||CONFIG.auctionTimerSec;sendCommand(name,[pid,items,startBid,timerSec]);return;}sendCommand(name,args);return;}const result=original[name](...args);if(NET.online&&NET.host&&!NET.executing)sendState();return result;};});
+ACTIONS.forEach(name=>{original[name]=window[name];window[name]=function(...args){if(NET.online&&!NET.host&&!NET.executing){if(name==='setReadyLobby'||name==='changeCarLobby'||name==='changeNameLobby'){
+      // Lobby actions used to ONLY sendCommand() and wait for the host's echo to come
+      // back before this guest's own screen showed anything — on a slow/flaky
+      // connection that read as "the ready button is stuck" even when it worked fine.
+      // Apply it locally right away for instant feedback (original[name] here is the
+      // real, unwrapped function — no network call of its own), then still tell the
+      // host, whose reply remains authoritative and will correct us if it disagrees.
+      original[name](...args);
+      sendCommand(name,args);
+      return;
+    }if(name==='startOwnAuction'){const pid=youAre;const checks=(Array.isArray(args[1])?args[1]:[]).map(Number).filter(Number.isInteger);const startBid=Math.max(10,Number(args[2])||10);const timerSec=Number(args[3])||CONFIG.auctionTimerSec;sendCommand(name,[pid,checks,startBid,timerSec]);return;}if(name==='startCardAuction'){const pid=youAre;const cardType=String(args[1]||'');const startBid=Math.max(10,Number(args[2])||10);const timerSec=Number(args[3])||CONFIG.auctionTimerSec;sendCommand(name,[pid,cardType,startBid,timerSec]);return;}if(name==='startCombinedAuction'){const pid=youAre;const items=(Array.isArray(args[1])?args[1]:[]).map(v=>(typeof v==='string'&&v.indexOf('card:')===0)?v:Number(v)).filter(v=>typeof v==='string'||Number.isInteger(v));const startBid=Math.max(10,Number(args[2])||10);const timerSec=Number(args[3])||CONFIG.auctionTimerSec;sendCommand(name,[pid,items,startBid,timerSec]);return;}sendCommand(name,args);return;}const result=original[name](...args);if(NET.online&&NET.host&&!NET.executing)sendState();return result;};});
 original.declareBankrupt=window.declareBankrupt;window.declareBankrupt=function(pid){if(NET.online&&!NET.host&&!NET.executing){if(pid!==youAre)return;openConfirm('Declare bankruptcy?',`This forfeits all of ${players[pid].name}'s properties and removes them from the game.`,()=>sendCommand('doBankrupt',[pid,null]),'Yes, go bankrupt');return;}const r=original.declareBankrupt(pid);if(NET.online&&NET.host&&!NET.executing)sendState();return r;};
 original.doBankrupt=window.doBankrupt;window.doBankrupt=function(...args){if(NET.online&&!NET.host&&!NET.executing){sendCommand('doBankrupt',args);return;}const r=original.doBankrupt(...args);if(NET.online&&NET.host&&!NET.executing)sendState();return r;};
 original.sendChat=window.sendChat;window.sendChat=function(){if(NET.online&&!NET.host&&!NET.executing){const i=document.getElementById('chatInput'),t=i.value.trim();if(!t)return;if(NET.isSpectator){

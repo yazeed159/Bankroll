@@ -16,71 +16,81 @@
 <div class="migrate-banner" id="migrateBanner"></div>
 <div class="toast-stack" id="toastStack"></div>
 
-<div class="start-overlay" id="startOverlay">
-  <div class="start-modal">
-    <div class="start-badge" id="startBadge" style="display:flex;width:fit-content;"><i></i> LIVE MULTIPLAYER</div>
-    <div class="brand" style="justify-content:center;">
-      <div class="brand-mark" id="startBrandMark" style="width:46px;height:46px;font-size:21px;">
-        <svg viewBox="0 0 24 24" width="60%" height="60%" fill="currentColor" aria-hidden="true">
-          <ellipse cx="12" cy="6.75" rx="6" ry="2.25"/>
-          <path d="M6 6.75 V12 C6 13.24 8.7 14.25 12 14.25 C15.3 14.25 18 13.24 18 12 V6.75" opacity="0.78"/>
-          <path d="M6 12 V17.25 C6 18.49 8.7 19.5 12 19.5 C15.3 19.5 18 18.49 18 17.25 V12" opacity="0.55"/>
-        </svg>
+<div class="landing start-overlay" id="startOverlay">
+  <div class="landing-bg" aria-hidden="true"></div>
+  <div class="landing-inner">
+
+    <div class="landing-header">
+      <div class="landing-badge" id="startBadge"><i></i>Live multiplayer</div>
+      <div class="landing-logo">
+        <div class="landing-logo-mark" id="startBrandMark">
+          <svg viewBox="0 0 24 24" width="60%" height="60%" fill="currentColor" aria-hidden="true">
+            <ellipse cx="12" cy="6.75" rx="6" ry="2.25"/>
+            <path d="M6 6.75 V12 C6 13.24 8.7 14.25 12 14.25 C15.3 14.25 18 13.24 18 12 V6.75" opacity="0.78"/>
+            <path d="M6 12 V17.25 C6 18.49 8.7 19.5 12 19.5 C15.3 19.5 18 18.49 18 17.25 V12" opacity="0.55"/>
+          </svg>
+        </div>
+        <div class="landing-logo-text" id="startBrandName">bankroll<span>.game</span></div>
       </div>
-      <div class="brand-name" id="startBrandName" style="font-size:25px;">bankroll<span>.game</span></div>
-    </div>
-    <div class="theme-picker" id="themePicker" role="group" aria-label="Board theme">
-      <button type="button" class="theme-pick-btn" data-theme-pick="skyline" onclick="setGameTheme('skyline')">
-        <span class="theme-pick-swatch theme-pick-swatch-skyline"></span> Modern
-      </button>
-      <button type="button" class="theme-pick-btn" data-theme-pick="hearthside" onclick="setGameTheme('hearthside')">
-        <span class="theme-pick-swatch theme-pick-swatch-hearthside"></span> Golden
-      </button>
-      <button type="button" class="theme-pick-btn" data-theme-pick="classic" onclick="setGameTheme('classic')">
-        <span class="theme-pick-swatch theme-pick-swatch-classic"></span> Classic
-      </button>
-    </div>
-    <div class="start-sub">An online property trading game for up to 8 players.<br><b>Each player has their own screen, controls and private turn focus.</b></div>
-
-    <!-- Connection status while creating/joining a room. Lives here (not inside
-         #gameRoot, which stays hidden this whole time) so it's actually visible
-         during "Connecting to host…" etc. instead of updating an invisible badge. -->
-    <div class="lobby-note" id="lobbyNetStatus" style="display:none;color:var(--text-dim);text-align:center;"></div>
-
-    <div class="setup-section" id="setupPlayers"></div>
-
-    <div class="start-actions" id="startActions">
-      <button class="roll-btn" style="width:100%;display:none;" id="resumeLocalBtn" onclick="resumeLocalGame()">&#9203; Resume last game</button>
-      <button class="roll-btn" style="width:100%;" onclick="startNewGame()">Create online game &amp; get room code</button>
-      <button class="bb" style="width:100%;" onclick="startLocalTest()">&#9889; Test locally (skip code)</button>
+      <div class="landing-sub">An online property trading game for up to 8 players.<br><b>Each player has their own screen, controls and private turn focus.</b></div>
+      <div class="landing-tags">
+        <span class="landing-tag">&#127922; Up to 8 players</span>
+        <span class="landing-tag">&#127183; Power-up cards</span>
+        <span class="landing-tag">&#127963;&#65039; Live auctions</span>
+        <span class="landing-tag">&#129309; Team alliances</span>
+      </div>
     </div>
 
-    <div class="start-divider" id="joinDivider">join an online game with a code</div>
-    <div class="start-join-row" id="joinRow">
-      <input class="chat-input" id="joinCodeField" placeholder="Paste room code…">
-      <button class="action-pill" onclick="joinWithCode()">Join</button>
-    </div>
+    <div class="landing-panel start-modal">
+      <!-- Connection status while creating/joining a room. Lives here (not inside
+           #gameRoot, which stays hidden this whole time) so it's actually visible
+           during "Connecting to host…" etc. instead of updating an invisible badge. -->
+      <div class="landing-net-status" id="lobbyNetStatus" style="display:none;"></div>
 
-    <!-- Lobby: shown once a room is created (host) or joined (guest), replacing the
-         menu above. Nobody sees the board until the host explicitly starts the game
-         from here, so players can't be dropped mid-setup before others have joined. -->
-    <div class="lobby-section" id="lobbySection" style="display:none;">
-      <div class="start-code-out" id="startCodeOut" style="display:none;">
-        <div class="start-code-label" id="startCodeLabel">Send this room code to up to 7 friends. Each friend joins from their own browser/device.</div>
-        <div class="start-code-row">
-          <input class="chat-input" id="startCodeField" readonly>
-          <button class="action-pill" onclick="copyStartCode()">Copy</button>
+      <div id="setupPlayers" style="display:none;"></div>
+
+      <div class="landing-actions" id="startActions">
+        <button class="landing-btn ghost" style="width:100%;display:none;" id="resumeLocalBtn" onclick="resumeLocalGame()">&#9203; Resume last game</button>
+        <button class="landing-btn primary" style="width:100%;" onclick="startNewGame()">Create online game &amp; get room code</button>
+        <button class="landing-btn subtle" style="width:100%;" onclick="startLocalTest()">&#9889; Test locally (skip code)</button>
+      </div>
+
+      <div class="landing-divider" id="joinDivider">join an online game with a code</div>
+      <div class="landing-join-row" id="joinRow">
+        <input class="landing-input" id="joinCodeField" placeholder="Paste room code…">
+        <button class="landing-btn primary compact" onclick="joinWithCode()">Join</button>
+      </div>
+
+      <!-- Lobby: shown once a room is created (host) or joined (guest), replacing the
+           menu above. Nobody sees the board until the host explicitly starts the game
+           from here, so players can't be dropped mid-setup before others have joined. -->
+      <div class="lobby" id="lobbySection" style="display:none;">
+        <div class="lobby-head">
+          <div>
+            <div class="lobby-eyebrow">Room lobby</div>
+            <div class="lobby-title">Waiting to start</div>
+          </div>
+        </div>
+
+        <div class="lobby-code-card" id="startCodeOut" style="display:none;">
+          <div class="lobby-code-label" id="startCodeLabel">Send this room code to up to 7 friends. Each friend joins from their own browser/device.</div>
+          <div class="lobby-code-row">
+            <input class="lobby-code-field" id="startCodeField" readonly>
+            <button class="landing-btn primary compact" onclick="copyStartCode()">Copy</button>
+          </div>
+        </div>
+        <div class="lobby-note" id="lobbyColorNote" style="display:none;"></div>
+        <div class="lobby-grid" id="lobbyList"></div>
+        <div class="lobby-waiting" id="lobbyWaitingText" style="display:none;">Waiting for the host to start the game&hellip;</div>
+        <div class="lobby-ready-note" id="lobbyReadyNote" style="display:none;"></div>
+        <div class="lobby-footer">
+          <button class="landing-btn primary" style="width:100%;" id="lobbyStartBtn" onclick="beginGame()">Start game &rarr;</button>
+          <button class="landing-btn subtle" style="width:100%;" onclick="confirmBackToMenu()">Leave lobby</button>
         </div>
       </div>
-      <div class="lobby-note" id="lobbyColorNote" style="display:none;"></div>
-      <div class="lobby-players" id="lobbyList"></div>
-      <div class="lobby-waiting" id="lobbyWaitingText" style="display:none;">Waiting for the host to start the game&hellip;</div>
-      <div class="lobby-note" id="lobbyReadyNote" style="display:none;"></div>
-      <button class="roll-btn" style="width:100%;margin-top:6px;" id="lobbyStartBtn" onclick="beginGame()">Start game &rarr;</button>
-      <button class="bb" style="width:100%;margin-top:8px;" onclick="confirmBackToMenu()">Leave lobby</button>
-    </div>
 
-    <button class="bb start-config-btn" id="rulesBtn" onclick="openConfigMenu()">&#9881; Rules &amp; setup</button>
+      <button class="landing-rules-btn" id="rulesBtn" onclick="openConfigMenu()">&#9881; Rules &amp; setup</button>
+    </div>
   </div>
 </div>
 
