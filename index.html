@@ -3,7 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Skyline Estates — Online Property Trading</title>
+<title>Bankroll — Online Property Trading</title>
+<link rel="icon" type="image/svg+xml" href="assets/logo.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700;800&family=Inter:wght@400;500;600;700&family=Alfa+Slab+One&family=Roboto+Slab:wght@400;500;600;700;800&family=Baloo+2:wght@500;600;700;800&family=Nunito:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/styles.css">
@@ -19,8 +20,14 @@
   <div class="start-modal">
     <div class="start-badge" id="startBadge" style="display:flex;width:fit-content;"><i></i> LIVE MULTIPLAYER</div>
     <div class="brand" style="justify-content:center;">
-      <div class="brand-mark" id="startBrandMark" style="width:46px;height:46px;font-size:21px;">S</div>
-      <div class="brand-name" id="startBrandName" style="font-size:25px;">skyline<span>.estates</span></div>
+      <div class="brand-mark" id="startBrandMark" style="width:46px;height:46px;font-size:21px;">
+        <svg viewBox="0 0 24 24" width="60%" height="60%" fill="currentColor" aria-hidden="true">
+          <ellipse cx="12" cy="6.75" rx="6" ry="2.25"/>
+          <path d="M6 6.75 V12 C6 13.24 8.7 14.25 12 14.25 C15.3 14.25 18 13.24 18 12 V6.75" opacity="0.78"/>
+          <path d="M6 12 V17.25 C6 18.49 8.7 19.5 12 19.5 C15.3 19.5 18 18.49 18 17.25 V12" opacity="0.55"/>
+        </svg>
+      </div>
+      <div class="brand-name" id="startBrandName" style="font-size:25px;">bankroll<span>.game</span></div>
     </div>
     <div class="theme-picker" id="themePicker" role="group" aria-label="Board theme">
       <button type="button" class="theme-pick-btn" data-theme-pick="skyline" onclick="setGameTheme('skyline')">
@@ -491,8 +498,14 @@
   <div class="main-col">
     <div class="topbar">
       <div class="brand">
-        <div class="brand-mark" id="topbarBrandMark">S</div>
-        <div class="brand-name" id="topbarBrandName">skyline<span>.estates</span></div>
+        <div class="brand-mark" id="topbarBrandMark">
+          <svg viewBox="0 0 24 24" width="60%" height="60%" fill="currentColor" aria-hidden="true">
+            <ellipse cx="12" cy="6.75" rx="6" ry="2.25"/>
+            <path d="M6 6.75 V12 C6 13.24 8.7 14.25 12 14.25 C15.3 14.25 18 13.24 18 12 V6.75" opacity="0.78"/>
+            <path d="M6 12 V17.25 C6 18.49 8.7 19.5 12 19.5 C15.3 19.5 18 18.49 18 17.25 V12" opacity="0.55"/>
+          </svg>
+        </div>
+        <div class="brand-name" id="topbarBrandName">bankroll<span>.game</span></div>
       </div>
       <div class="you-are" id="youAreBar">You are: <span id="youAreName">Player 1</span></div>
       <div style="display:flex;gap:6px;align-items:center;">
@@ -733,5 +746,6 @@
 
 <script src="js/game.js"></script>
 <script src="js/theme.js"></script>
+<script src="js/accessibility.js"></script>
 </body>
 </html>

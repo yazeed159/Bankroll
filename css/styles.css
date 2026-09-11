@@ -1239,7 +1239,7 @@ html[data-theme="skyline"], [data-theme="skyline"] body{width:100%;height:100%;o
 [data-theme="skyline"] .gb-stage-wrap{flex:1 1 auto;min-height:0;height:auto;}
 [data-theme="skyline"] svg#board{max-height:100%;}
 [data-theme="skyline"] .board-controls{position:relative;flex-shrink:0;z-index:15;flex-wrap:wrap;background:rgba(10,13,22,.94);backdrop-filter:blur(10px);border:1px solid var(--line);border-radius:12px;margin:0 14px 12px;padding:8px;gap:8px;}
-[data-theme="skyline"] .board-controls .roll-btn{min-height:42px;}
+[data-theme="skyline"] .board-controls .roll-btn{min-height:48px;}
 [data-theme="skyline"] .roll-result{flex:1 1 180px;text-align:center;min-width:150px;}
 /* player cards top-right, history/trades bottom-right — see-through so the map
    stays readable underneath both widgets */
@@ -2309,7 +2309,7 @@ html[data-theme="classic"], [data-theme="classic"] body{width:100%;height:100%;o
 [data-theme="classic"] .gb-stage-wrap{flex:1 1 auto;min-height:0;height:auto;}
 [data-theme="classic"] svg#board{max-height:100%;}
 [data-theme="classic"] .board-controls{position:relative;flex-shrink:0;z-index:15;flex-wrap:wrap;background:rgba(10,13,22,.94);backdrop-filter:blur(10px);border:1px solid var(--line);border-radius:12px;margin:0 14px 12px;padding:8px;gap:8px;}
-[data-theme="classic"] .board-controls .roll-btn{min-height:42px;}
+[data-theme="classic"] .board-controls .roll-btn{min-height:48px;}
 [data-theme="classic"] .roll-result{flex:1 1 180px;text-align:center;min-width:150px;}
 /* player cards top-right, history/trades bottom-right — see-through so the map
    stays readable underneath both widgets */
@@ -3225,7 +3225,7 @@ html[data-theme="hearthside"], [data-theme="hearthside"] body{width:100%;height:
 [data-theme="hearthside"] .gb-stage-wrap{flex:1 1 auto;min-height:0;height:auto;}
 [data-theme="hearthside"] svg#board{max-height:100%;}
 [data-theme="hearthside"] .board-controls{position:relative;flex-shrink:0;z-index:15;flex-wrap:wrap;background:rgba(10,13,22,.94);backdrop-filter:blur(10px);border:1px solid var(--line);border-radius:12px;margin:0 14px 12px;padding:8px;gap:8px;}
-[data-theme="hearthside"] .board-controls .roll-btn{min-height:42px;}
+[data-theme="hearthside"] .board-controls .roll-btn{min-height:48px;}
 [data-theme="hearthside"] .roll-result{flex:1 1 180px;text-align:center;min-width:150px;}
 [data-theme="hearthside"] .player-card{min-width:0;}
 [data-theme="hearthside"] .player-card.is-me{grid-column:1/-1;order:-1;border-width:2px;box-shadow:0 0 0 1px currentColor,0 8px 28px rgba(0,0,0,.22);}

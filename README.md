@@ -1,6 +1,6 @@
-# Skyline Estates
+# Bankroll
 
-An online, browser-based property-trading board game (Monopoly-style) with live multiplayer, an animated 3D-ish board, three visual themes, power-up cards, auctions, and alliance/team play — all running client-side, no backend server required.
+An online, browser-based property-trading board game with live multiplayer, an animated 3D-ish board, three visual themes, power-up cards, auctions, and alliance/team play — all running client-side, no backend server required.
 
 ## Playing it
 
@@ -17,14 +17,17 @@ Multiplayer uses [PeerJS](https://peerjs.com/) for peer-to-peer WebRTC connectio
 ## Project structure
 
 ```
-skyline-estates/
+bankroll/
 ├── index.html       # page markup only
 ├── css/
 │   └── styles.css    # all styling, including the three theme skins
 ├── js/
-│   ├── lib-loader.js  # CDN fallback loader for PeerJS
-│   ├── game.js        # game engine: board, rules, networking, UI wiring
-│   └── theme.js        # theme switcher (Modern / Golden / Classic skins)
+│   ├── lib-loader.js    # CDN fallback loader for PeerJS
+│   ├── game.js           # game engine: board, rules, networking, UI wiring
+│   ├── theme.js          # theme switcher (Modern / Golden / Classic skins)
+│   └── accessibility.js  # modal focus management, live regions, keyboard shortcuts
+├── assets/
+│   └── logo.svg      # favicon + brand mark
 └── LICENSE
 ```
 

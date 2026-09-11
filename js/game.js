@@ -7261,7 +7261,7 @@ function showStartOverlay(){
 
 
 /* ============================================================
-   SKYLINE ESTATES — ONLINE 8-PLAYER MODE
+   BANKROLL — ONLINE 8-PLAYER MODE
    Host-authoritative PeerJS room. Up to 8 separate screens/devices.
    ============================================================ */
 (function(){
