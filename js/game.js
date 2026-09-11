@@ -3213,7 +3213,7 @@ function autoPlayTick(){
    instead, reusing the same toast pill so it fits right in with everything
    else flashing on the board. */
 function showKeyHintsToast(){
-  showToast({id:++toastSeq, html:'<b>Space</b> roll &middot; <b>E</b> end turn &middot; <b>Q</b> buy &middot; <b>A</b> auction/decline &middot; <b>R</b> bail &middot; <b>X</b> cancel &middot; <b>C</b> cards &middot; <b>Z</b> auto-play', glyph:'⌨', tier:'toast'});
+  showToast({id:++toastSeq, html:'<b>Space</b> roll/buy/end turn &middot; <b>E</b> end turn &middot; <b>Q</b> buy &middot; <b>A</b> auction/decline &middot; <b>R</b> bail &middot; <b>X</b> cancel &middot; <b>C</b> cards &middot; <b>Z</b> auto-play', glyph:'⌨', tier:'toast'});
 }
 function markOwnership(i, color){
   const face = ownFaceEls[i];
@@ -6749,6 +6749,9 @@ function changeCarLobby(pid, car){
   if(takenByOther) return; // someone else already has it — the picker UI keeps this disabled, this is just the authoritative re-check
   player.car = car;
   player.color = colorForCar(car);
+  PLAYER_SETUP[pid] = PLAYER_SETUP[pid] || {};
+  PLAYER_SETUP[pid].car = car;
+  PLAYER_SETUP[pid].color = player.color; // keep in sync so applyPlayerIdentity() (re-run on every join/reconnect) doesn't stomp this with a stale value, same as changeNameLobby does for name
   if(tokenEls[pid]) updateTokenAppearance(pid, player.color, car);
   renderLobbyPlayers();
   refreshPlayerVisuals();

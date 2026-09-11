@@ -130,8 +130,8 @@
      from a hand resting near the home row without stretching to Enter, the
      arrow keys, or anywhere on the right side of the board — so the other
      hand (mouse, controller, whatever) never has to touch the keyboard.
-       Space - roll dice           Q - buy / buy it out
-       E     - end turn            A - send to auction / decline
+       Space - roll / buy / end turn   Q - buy / buy it out
+       E     - end turn                A - send to auction / decline
        R     - pay bail            X - cancel a pending pick (teleport etc.)
        C     - open/close power cards
      Only fires during active gameplay — never while a modal is open or while
@@ -156,7 +156,14 @@
 
     const key = e.key.toLowerCase();
     if(key === ' ' || e.code === 'Space'){
+      // whichever action is actually available right now — roll while a roll
+      // is pending, then buy/buy-out if a purchase prompt is up, then end
+      // turn once neither is — never more than one at once, same fallthrough
+      // pattern as Q (buy/buy-out) below
       if(clickIfActionable(document.getElementById('rollBtn'))) e.preventDefault();
+      else if(clickIfActionable(document.getElementById('buyYesBtn'))) e.preventDefault();
+      else if(clickIfActionable(document.getElementById('buyoutYesBtn'))) e.preventDefault();
+      else if(clickIfActionable(document.getElementById('endTurnBtn'))) e.preventDefault();
     }else if(key === 'e'){
       if(clickIfActionable(document.getElementById('endTurnBtn'))) e.preventDefault();
     }else if(key === 'q'){
