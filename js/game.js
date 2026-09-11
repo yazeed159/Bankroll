@@ -7520,7 +7520,7 @@ function renderLobbyPlayers(){
     const nameHtml = isYou
       ? `<input type="text" class="chat-input lobby-name-input" id="lobbyNameInput" style="flex:1;min-width:0;padding:6px 10px;font-size:13px;" value="${escapeHtml(p.name)}" maxlength="16" placeholder="${escapeHtml((PLAYER_DEFAULTS[PLAYER_IDS.indexOf(pid)]||[''])[0])}" ${p.ready?'disabled':''} oninput="changeNameLobby('${pid}',this.value)">`
       : `<span class="lobby-player-name">${escapeHtml(p.name)}</span>`;
-    const readyBtn = isYou
+    const readyBtn = (isYou && NET.online)
       ? `<button type="button" class="action-pill ${p.ready?'danger':''}" style="flex-shrink:0;padding:6px 12px;font-size:10.5px;margin-left:6px;" onclick="setReadyLobby('${pid}',${p.ready?'false':'true'})">${p.ready?'Not ready':'Ready'}</button>`
       : '';
     // for your own row, show a live car picker — every other active player's
@@ -7586,6 +7586,16 @@ window.renderLobbyPlayers = renderLobbyPlayers;
    guests never see this button at all (see enterLobbyUI). */
 function updateLobbyStartBtnState(){
   const btn=document.getElementById('lobbyStartBtn'); if(!btn||!NET.host)return;
+  // local test (see startLocalTest) is always solo and offline — there's no
+  // one else to wait on, so pressing "Ready" on yourself would just be a
+  // pointless extra click before every single test game. Skip the gate
+  // entirely whenever we're not actually online; real hosted rooms (NET.online)
+  // still require everyone, including the host, to ready up as before.
+  if(!NET.online){
+    btn.disabled=false; btn.style.opacity=''; btn.style.cursor='';
+    const note=document.getElementById('lobbyReadyNote'); if(note) note.style.display='none';
+    return;
+  }
   const activeIds=PLAYER_IDS.filter(pid=>players[pid].active);
   const readyCount=activeIds.filter(pid=>players[pid].ready).length;
   const allReady=activeIds.length>0 && readyCount===activeIds.length;
