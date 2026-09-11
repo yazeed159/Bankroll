@@ -175,6 +175,8 @@
       else if(clickIfActionable(document.getElementById('propertySwapCancelBtn'))) e.preventDefault();
     }else if(key === 'c'){
       if(clickIfActionable(document.getElementById('powerCardsBtn'))) e.preventDefault();
+    }else if(key === 'z'){
+      if(clickIfActionable(document.getElementById('autoPlayBtn'))) e.preventDefault();
     }
   });
 

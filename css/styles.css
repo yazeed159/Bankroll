@@ -3339,6 +3339,16 @@ body.spectator-mode #powerCardsBtn{display:none !important;}
   background:rgba(0,0,0,.22);box-shadow:0 0 0 1px rgba(255,255,255,.18) inset;
   color:inherit;opacity:.85;vertical-align:middle;
 }
+/* Auto-play toggle — a plain roll-btn until it's switched on, at which point
+   it gets a pulsing gold ring so it stays obviously "live" while it's
+   clicking through your turns for you (easy to miss otherwise, since it
+   doesn't move or make noise on its own). Global/theme-agnostic like
+   .key-hint above, for the same reason. */
+#autoPlayBtn.auto-on{
+  box-shadow:0 0 0 2px #fbbf24, 0 0 16px 2px rgba(251,191,36,.55);
+  animation:autoPlayPulse 1.6s ease-in-out infinite;
+}
+@keyframes autoPlayPulse{0%,100%{box-shadow:0 0 0 2px #fbbf24, 0 0 10px 1px rgba(251,191,36,.4);}50%{box-shadow:0 0 0 2px #fbbf24, 0 0 20px 4px rgba(251,191,36,.75);}}
 .lobby-footer{display:flex;flex-direction:column;gap:10px;margin-top:6px;}
 
 @media (max-width:640px){

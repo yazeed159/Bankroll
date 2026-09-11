@@ -3158,12 +3158,62 @@ function showToast(payload){
   }, dur);
 }
 
+/* ============ AUTO-PLAY ============
+   A "just get through my own turns" toggle for the slow early-game stretch
+   where every tile is unowned and you're clicking Roll → Buy → End turn over
+   and over. While it's on and it's your own turn, this repeatedly presses
+   whichever of your turn buttons is currently clickable — roll, buy, pay
+   bail, end turn — on a short human-speed timer so it's still watchable
+   instead of instantly resolving the whole game. It never touches anything
+   that isn't your own decision (auctions, trades, other players' turns) and
+   backs off the instant any overlay/modal is open, so it can't fight you or
+   fire an action underneath a dialog you're looking at. */
+let autoPlayEnabled = false;
+let autoPlayTimer = null;
+const AUTO_PLAY_TICK_MS = 650; // pause between auto-clicks — fast, but still readable
+
+function setAutoPlayEnabled(on){
+  autoPlayEnabled = on;
+  const btn = document.getElementById('autoPlayBtn');
+  const label = document.getElementById('autoPlayBtnLabel');
+  if(label) label.textContent = on ? 'Auto: on' : 'Auto: off';
+  if(btn) btn.classList.toggle('auto-on', on);
+  if(on && !autoPlayTimer) autoPlayTick();
+  if(!on && autoPlayTimer){ clearTimeout(autoPlayTimer); autoPlayTimer = null; }
+}
+function toggleAutoPlay(){ setAutoPlayEnabled(!autoPlayEnabled); }
+
+function autoPlayClickable(id){
+  const btn = document.getElementById(id);
+  if(!btn || btn.disabled) return null;
+  if(btn.offsetParent === null) return null; // hidden (display:none or detached)
+  return btn;
+}
+function autoPlayTick(){
+  autoPlayTimer = null;
+  if(!autoPlayEnabled) return;
+  if(gameOver || !players[youAre] || players[youAre].bankrupt || !players[youAre].active){
+    setAutoPlayEnabled(false); return;
+  }
+  // never act underneath an open modal/overlay (trade review, auction,
+  // power cards, config, confirm-bankruptcy, etc.) — wait it out instead.
+  if(!document.querySelector('.trade-overlay.show, .confirm-overlay.show') && order[turnIdx] === youAre){
+    // priority order matters: pay bail immediately rather than trying for
+    // doubles first (bail is the fast path, which is the whole point here),
+    // then buy anything landed on, then roll, then end the turn once nothing
+    // else is left to do.
+    const btn = autoPlayClickable('bailBtn') || autoPlayClickable('buyYesBtn') || autoPlayClickable('rollBtn') || autoPlayClickable('endTurnBtn');
+    if(btn) btn.click();
+  }
+  autoPlayTimer = setTimeout(autoPlayTick, AUTO_PLAY_TICK_MS);
+}
+
 /* the sidebar's "⌨ Controls" pill has a hover title with the full shortcut
    legend for desktop, but touch devices can't hover — tapping it fires this
    instead, reusing the same toast pill so it fits right in with everything
    else flashing on the board. */
 function showKeyHintsToast(){
-  showToast({id:++toastSeq, html:'<b>Space</b> roll &middot; <b>E</b> end turn &middot; <b>Q</b> buy &middot; <b>A</b> auction/decline &middot; <b>R</b> bail &middot; <b>X</b> cancel &middot; <b>C</b> cards', glyph:'⌨', tier:'toast'});
+  showToast({id:++toastSeq, html:'<b>Space</b> roll &middot; <b>E</b> end turn &middot; <b>Q</b> buy &middot; <b>A</b> auction/decline &middot; <b>R</b> bail &middot; <b>X</b> cancel &middot; <b>C</b> cards &middot; <b>Z</b> auto-play', glyph:'⌨', tier:'toast'});
 }
 function markOwnership(i, color){
   const face = ownFaceEls[i];
@@ -7268,6 +7318,7 @@ function beginGame(){
   refreshUI();
 }
 function showStartOverlay(){
+  setAutoPlayEnabled(false); // don't carry "auto" into the next game/lobby unannounced
   clearTurnTimerTimeout();
   turnTimerActiveId = null;
   turnTimerPaused = false;
@@ -7344,6 +7395,7 @@ function endGameForAll(){
    — no new message type needed. */
 function returnToLobbyForAll(){
   if(NET.online && !NET.host) return; // only the host can restart the room for everyone
+  setAutoPlayEnabled(false);
   closeGameOverSummary();
   if(auction){ if(auction.interval) clearInterval(auction.interval); auction=null; document.getElementById('auctionOverlay').classList.remove('show'); }
   clearTurnTimerTimeout(); stopTurnTimerVisual();

@@ -559,6 +559,7 @@
         <button class="roll-btn" id="auctionBtn" onclick="toggleAuctionPanel()" style="background:var(--violet);color:#1c1533;display:none;">&#128176; Auction</button>
         <button class="roll-btn" id="loanBtn" onclick="toggleLoanPanel()" style="background:var(--gold);color:#241d05;display:none;">&#127974; Loan</button>
         <button class="roll-btn" id="sideBetBtn" onclick="toggleSideBetPanel()" style="background:#c58af0;color:#1c0a2e;display:none;">&#127922; Side bet</button>
+        <button class="roll-btn" id="autoPlayBtn" onclick="toggleAutoPlay()" title="Rolls, buys anything you land on, and pays bail automatically on your turns — handy for blowing through the slow early buying phase">&#129302; <span id="autoPlayBtnLabel">Auto: off</span><span class="key-hint">Z</span></button>
         <button class="roll-btn" id="powerCardsBtn" onclick="openPowerCards()" style="background:var(--cyan);color:#04231f;" title="View, use, trade, or relay your power cards">&#127183; <span id="powerCardsBtnLabel">Cards</span><span class="key-hint">C</span></button>
       </div>
       <div class="buy-panel" id="buyoutPanel">
@@ -612,7 +613,7 @@
 
       <div class="bottom-btns">
         <div class="bb" id="fullscreenBtn" onclick="toggleFullscreen()">&#9974; <span id="fullscreenBtnLabel">Fullscreen</span></div>
-        <div class="bb" id="keyHintsBtn" onclick="showKeyHintsToast()" title="Space roll · E end turn · Q buy · A auction/decline · R bail · X cancel · C cards — all left-hand, no reaching for Enter or the arrows">&#9000; Controls</div>
+        <div class="bb" id="keyHintsBtn" onclick="showKeyHintsToast()" title="Space roll · E end turn · Q buy · A auction/decline · R bail · X cancel · C cards · Z auto-play — all left-hand, no reaching for Enter or the arrows">&#9000; Controls</div>
       </div>
     </div>
   </div>
