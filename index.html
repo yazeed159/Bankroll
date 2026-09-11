@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="skyline">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Skyline Estates — Online Property Trading</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700;800&family=Inter:wght@400;500;600;700&family=Alfa+Slab+One&family=Roboto+Slab:wght@400;500;600;700;800&family=Baloo+2:wght@500;600;700;800&family=Nunito:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/styles.css">
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script type="module" src="https://unpkg.com/@google/model-viewer@3.5.0/dist/model-viewer.min.js"></script>
+<script src="js/lib-loader.js"></script>
+</head>
+<body>
+<div class="migrate-banner" id="migrateBanner"></div>
+<div class="toast-stack" id="toastStack"></div>
+
+<div class="start-overlay" id="startOverlay">
+  <div class="start-modal">
+    <div class="start-badge" id="startBadge" style="display:flex;width:fit-content;"><i></i> LIVE MULTIPLAYER</div>
+    <div class="brand" style="justify-content:center;">
+      <div class="brand-mark" id="startBrandMark" style="width:46px;height:46px;font-size:21px;">S</div>
+      <div class="brand-name" id="startBrandName" style="font-size:25px;">skyline<span>.estates</span></div>
+    </div>
+    <div class="theme-picker" id="themePicker" role="group" aria-label="Board theme">
+      <button type="button" class="theme-pick-btn" data-theme-pick="skyline" onclick="setGameTheme('skyline')">
+        <span class="theme-pick-swatch theme-pick-swatch-skyline"></span> Modern
+      </button>
+      <button type="button" class="theme-pick-btn" data-theme-pick="hearthside" onclick="setGameTheme('hearthside')">
+        <span class="theme-pick-swatch theme-pick-swatch-hearthside"></span> Golden
+      </button>
+      <button type="button" class="theme-pick-btn" data-theme-pick="classic" onclick="setGameTheme('classic')">
+        <span class="theme-pick-swatch theme-pick-swatch-classic"></span> Classic
+      </button>
+    </div>
+    <div class="start-sub">An online property trading game for up to 8 players.<br><b>Each player has their own screen, controls and private turn focus.</b></div>
+
+    <!-- Connection status while creating/joining a room. Lives here (not inside
+         #gameRoot, which stays hidden this whole time) so it's actually visible
+         during "Connecting to host…" etc. instead of updating an invisible badge. -->
+    <div class="lobby-note" id="lobbyNetStatus" style="display:none;color:var(--text-dim);text-align:center;"></div>
+
+    <div class="setup-section" id="setupPlayers"></div>
+
+    <div class="start-actions" id="startActions">
+      <button class="roll-btn" style="width:100%;display:none;" id="resumeLocalBtn" onclick="resumeLocalGame()">&#9203; Resume last game</button>
+      <button class="roll-btn" style="width:100%;" onclick="startNewGame()">Create online game &amp; get room code</button>
+      <button class="bb" style="width:100%;" onclick="startLocalTest()">&#9889; Test locally (skip code)</button>
+    </div>
+
+    <div class="start-divider" id="joinDivider">join an online game with a code</div>
+    <div class="start-join-row" id="joinRow">
+      <input class="chat-input" id="joinCodeField" placeholder="Paste room code…">
+      <button class="action-pill" onclick="joinWithCode()">Join</button>
+    </div>
+
+    <!-- Lobby: shown once a room is created (host) or joined (guest), replacing the
+         menu above. Nobody sees the board until the host explicitly starts the game
+         from here, so players can't be dropped mid-setup before others have joined. -->
+    <div class="lobby-section" id="lobbySection" style="display:none;">
+      <div class="start-code-out" id="startCodeOut" style="display:none;">
+        <div class="start-code-label" id="startCodeLabel">Send this room code to up to 7 friends. Each friend joins from their own browser/device.</div>
+        <div class="start-code-row">
+          <input class="chat-input" id="startCodeField" readonly>
+          <button class="action-pill" onclick="copyStartCode()">Copy</button>
+        </div>
+      </div>
+      <div class="lobby-note" id="lobbyColorNote" style="display:none;"></div>
+      <div class="lobby-players" id="lobbyList"></div>
+      <div class="lobby-waiting" id="lobbyWaitingText" style="display:none;">Waiting for the host to start the game&hellip;</div>
+      <div class="lobby-note" id="lobbyReadyNote" style="display:none;"></div>
+      <button class="roll-btn" style="width:100%;margin-top:6px;" id="lobbyStartBtn" onclick="beginGame()">Start game &rarr;</button>
+      <button class="bb" style="width:100%;margin-top:8px;" onclick="confirmBackToMenu()">Leave lobby</button>
+    </div>
+
+    <button class="bb start-config-btn" id="rulesBtn" onclick="openConfigMenu()">&#9881; Rules &amp; setup</button>
+  </div>
+</div>
+
+<div class="trade-overlay" id="configOverlay">
+  <div class="trade-modal" style="max-width:480px;border-top:2px solid var(--cyan);">
+    <div class="trade-top" style="justify-content:space-between;align-items:center;padding:16px 22px 0;">
+      <div class="cfg-title" style="margin:0;">&#9881;&#65039; Rules &amp; setup</div>
+      <button class="trade-close" onclick="closeConfigMenu()">&times;</button>
+    </div>
+    <div class="cfg-body" id="cfgBody">
+
+      <div class="cfg-tabs" role="tablist">
+        <button type="button" class="cfg-tab-btn active" id="cfgTabBtn-general" onclick="switchConfigTab('general')" role="tab" aria-selected="true">General</button>
+        <button type="button" class="cfg-tab-btn" id="cfgTabBtn-auctions" onclick="switchConfigTab('auctions')" role="tab" aria-selected="false">Auctions &amp; building</button>
+        <button type="button" class="cfg-tab-btn" id="cfgTabBtn-cards" onclick="switchConfigTab('cards')" role="tab" aria-selected="false">Cards &amp; power-ups</button>
+      </div>
+
+      <div class="cfg-tab-panel active" id="cfgTabPanel-general" role="tabpanel">
+      <div class="cfg-grid-3">
+        <div class="cfg-field">
+          <label>Starting cash</label>
+          <input type="number" id="cfgStartingCash" min="0" step="50">
+        </div>
+        <div class="cfg-field">
+          <label>Salary (pass GO)</label>
+          <input type="number" id="cfgSalary" min="0" step="10">
+        </div>
+        <div class="cfg-field">
+          <label>Jail bail</label>
+          <input type="number" id="cfgBail" min="0" step="10">
+        </div>
+      </div>
+      <div class="cfg-grid-3">
+        <div class="cfg-field">
+          <label>Landing exactly on GO</label>
+          <input type="number" id="cfgGoLandingBonus" min="0" step="10">
+        </div>
+      </div>
+
+      <div class="cfg-field cfg-checkbox">
+        <label><input type="checkbox" id="cfgLoansEnabled" onchange="toggleLoanFieldsUI()"> Allow bank loans</label>
+      </div>
+      <div class="cfg-loan-fields" id="cfgLoanFields">
+        <div class="cfg-field">
+          <label>Loan limit</label>
+          <input type="number" id="cfgLoanLimit" min="0" step="50">
+        </div>
+        <div class="cfg-field">
+          <label>Interest on repay (%)</label>
+          <input type="number" id="cfgLoanInterest" min="0" step="1">
+        </div>
+      </div>
+      <div class="cfg-hint">Players can borrow from the bank (up to the limit) and repay later at this interest rate, from the Manage panel on their turn.</div>
+
+      <div class="cfg-section-title violet">&#129309; Alliances</div>
+      <div class="cfg-field cfg-checkbox">
+        <label><input type="checkbox" id="cfgTeamsEnabled" onchange="toggleTeamOnlyCardsUI()"> Team mode — pair players into alliances that share one bank and win together</label>
+      </div>
+      <div class="cfg-hint">Once this is on, pair players up from the lobby list below (each pair shares one pooled balance — money either of them earns or spends comes out of the same pot — and the whole pair goes bankrupt or wins together).</div>
+
+      <div class="cfg-section-title gold">&#127968; Rent</div>
+      <div class="cfg-field cfg-checkbox">
+        <label><input type="checkbox" id="cfgNoRentInJail"> No rent collected while the owner is in jail</label>
+      </div>
+      <div class="cfg-field cfg-checkbox">
+        <label><input type="checkbox" id="cfgDoubleRentFullSet"> Double rent on unimproved full-set properties</label>
+      </div>
+
+      <div class="cfg-section-title">&#9203; Turn timer</div>
+      <div class="cfg-field cfg-checkbox">
+        <label><input type="checkbox" id="cfgTurnTimerEnabled" onchange="toggleTurnTimerFieldsUI()"> Give each player a countdown to finish their turn</label>
+      </div>
+      <div class="cfg-loan-fields" id="cfgTurnTimerField">
+        <div class="cfg-field">
+          <label>Time per turn</label>
+          <select id="cfgTurnTimerSec">
+            <option value="15">15 seconds</option>
+            <option value="30">30 seconds</option>
+            <option value="45">45 seconds</option>
+            <option value="60">60 seconds</option>
+            <option value="90">90 seconds</option>
+            <option value="120">120 seconds</option>
+          </select>
+        </div>
+      </div>
+      <div class="cfg-hint">Shown as a shrinking ring around the active player's avatar. If time runs out, their turn is ended automatically (or the dice are rolled for them if they haven't rolled yet). The clock pauses whenever a player is stuck negative and can't legally end their turn — it picks back up once they're square again.</div>
+
+      <div class="cfg-section-title pink">&#127922; Side bets</div>
+      <div class="cfg-field cfg-checkbox">
+        <label><input type="checkbox" id="cfgSideBetsEnabled"> Let players wager cash against each other's dice rolls</label>
+      </div>
+      <div class="cfg-hint">A purely social side-game — anyone other than the active player can challenge a quick $25/$50/$100 bet on their upcoming roll (doubles, odd/even, or over/under 7) right up until they roll. Winner takes the wager straight from the loser; it never touches properties, rent, or the bank.</div>
+      </div>
+
+      <div class="cfg-tab-panel" id="cfgTabPanel-auctions" role="tabpanel">
+      <div class="cfg-section-title violet">&#128296; Auctions</div>
+      <div class="cfg-field cfg-checkbox">
+        <label><input type="checkbox" id="cfgAuctionOnDecline"> Send unbought properties to auction (recommended) — otherwise the turn just ends</label>
+      </div>
+      <div class="cfg-field cfg-checkbox">
+        <label><input type="checkbox" id="cfgAuctionFunMode" onchange="toggleFunModeUI()"> Auction-only mode — landing on an unowned property always goes to auction (no direct buy)</label>
+      </div>
+      <div class="cfg-field" id="cfgAuctionTimerField">
+        <label>Default auction timer</label>
+        <select id="cfgAuctionTimer">
+          <option value="3">3 seconds</option>
+          <option value="6">6 seconds</option>
+          <option value="9">9 seconds</option>
+        </select>
+      </div>
+      <div class="cfg-hint">Owners can also start their own auction on properties they own (no houses, unmortgaged) from the Manage panel, picking their own starting bid and a 3/6/9s timer.</div>
+
+      <div class="cfg-section-title">&#127959;&#65039; Building</div>
+      <div class="cfg-field cfg-checkbox">
+        <label><input type="checkbox" id="cfgRequireFullSet"> Require owning the full color set to build houses</label>
+      </div>
+      <div class="cfg-field cfg-checkbox">
+        <label><input type="checkbox" id="cfgEvenBuild"> Build evenly — no property in a set may have 2+ more houses than any other in that set</label>
+      </div>
+
+      <div class="cfg-section-title pink">&#129309; Buy out opponent's properties</div>
+      <div class="cfg-field cfg-checkbox">
+        <label><input type="checkbox" id="cfgBuyoutEnabled" onchange="toggleBuyoutFieldsUI()"> Allow buying an opponent's property outright</label>
+      </div>
+      <div class="cfg-loan-fields" id="cfgBuyoutFields">
+        <div class="cfg-field">
+          <label>Price multiplier</label>
+          <select id="cfgBuyoutMultiplier">
+            <option value="2">2&times;</option>
+            <option value="3">3&times;</option>
+            <option value="4">4&times;</option>
+            <option value="5">5&times;</option>
+            <option value="6">6&times;</option>
+          </select>
+        </div>
+        <div class="cfg-field cfg-checkbox" style="justify-content:flex-end;">
+          <label><input type="checkbox" id="cfgBuyoutAnywhere"> Any time, not just on landing</label>
+        </div>
+      </div>
+      <div class="cfg-field cfg-checkbox" id="cfgBuyoutHousesField">
+        <label><input type="checkbox" id="cfgBuyoutIncludesHouses"> Buyout includes any houses built on the property</label>
+      </div>
+      </div>
+
+      <div class="cfg-tab-panel" id="cfgTabPanel-cards" role="tabpanel">
+      <div class="cfg-section-title gold">&#127183; Cards &amp; power-ups</div>
+      <div class="cfg-hint">Lucky Wheel and Happy Birthday are listed here as cards too — switch either's cash draws off and that tile stops paying cash entirely, drawing a power-up instead every time (the tile itself relabels on the board to show it).</div>
+      <div id="cfgSpecialCardsGrid">
+        <div class="cfg-power-card">
+          <div style="display:flex;align-items:flex-end;gap:10px;">
+            <div class="cfg-field cfg-checkbox" style="flex:1;margin-bottom:0;">
+              <label><input type="checkbox" id="cfgLuckyWheelCashEnabled"> &#127871; Lucky Wheel &mdash; cash draws</label>
+            </div>
+          </div>
+          <div class="cfg-power-desc">On (default): landing here draws a random cash event, good or bad. Off: every landing draws a power-up instead.</div>
+        </div>
+        <div class="cfg-power-card">
+          <div style="display:flex;align-items:flex-end;gap:10px;">
+            <div class="cfg-field cfg-checkbox" style="flex:1;margin-bottom:0;">
+              <label><input type="checkbox" id="cfgBdayCashEnabled"> &#127874; Happy Birthday &mdash; cash draws</label>
+            </div>
+          </div>
+          <div class="cfg-power-desc">Off (default): this tile always draws a power-up instead of its cash gift. On: it pays its birthday cash bonus instead.</div>
+        </div>
+      </div>
+      <div class="cfg-hint">Each power-up below can be switched off entirely, or dialed up/down against the others — the weight is only relative, so it doesn't need to add up to 100.</div>
+      <div id="cfgPowerCardsGrid">
+        <div class="cfg-power-card">
+          <div style="display:flex;align-items:flex-end;gap:10px;">
+            <div class="cfg-field cfg-checkbox" style="flex:1;margin-bottom:0;">
+              <label><input type="checkbox" id="cfgPowerShieldEnabled"> &#128737;&#65039; Property Shield</label>
+            </div>
+            <div class="cfg-field" style="width:88px;margin-bottom:0;">
+              <label>Weight</label>
+              <input type="number" id="cfgPowerShieldWeight" min="0" max="100" step="5">
+            </div>
+          </div>
+          <div class="cfg-power-desc">Raise before you roll — blocks all rent charged to you for the rest of that turn.</div>
+        </div>
+        <div class="cfg-power-card">
+          <div style="display:flex;align-items:flex-end;gap:10px;">
+            <div class="cfg-field cfg-checkbox" style="flex:1;margin-bottom:0;">
+              <label><input type="checkbox" id="cfgPowerRentDoublerEnabled"> &#128176; Rent Doubler</label>
+            </div>
+            <div class="cfg-field" style="width:88px;margin-bottom:0;">
+              <label>Weight</label>
+              <input type="number" id="cfgPowerRentDoublerWeight" min="0" max="100" step="5">
+            </div>
+          </div>
+          <div class="cfg-power-desc">Arm any time — doubles every rent you collect until your next turn.</div>
+        </div>
+        <div class="cfg-power-card">
+          <div style="display:flex;align-items:flex-end;gap:10px;">
+            <div class="cfg-field cfg-checkbox" style="flex:1;margin-bottom:0;">
+              <label><input type="checkbox" id="cfgPowerJailFreeEnabled"> &#128275; Get Out of Jail Free</label>
+            </div>
+            <div class="cfg-field" style="width:88px;margin-bottom:0;">
+              <label>Weight</label>
+              <input type="number" id="cfgPowerJailFreeWeight" min="0" max="100" step="5">
+            </div>
+          </div>
+          <div class="cfg-power-desc">Fires automatically the moment you'd be sent to jail — no bail needed, nothing to play by hand.</div>
+        </div>
+        <div class="cfg-power-card">
+          <div style="display:flex;align-items:flex-end;gap:10px;">
+            <div class="cfg-field cfg-checkbox" style="flex:1;margin-bottom:0;">
+              <label><input type="checkbox" id="cfgPowerTeleportEnabled"> &#127760; Teleport</label>
+            </div>
+            <div class="cfg-field" style="width:88px;margin-bottom:0;">
+              <label>Weight</label>
+              <input type="number" id="cfgPowerTeleportWeight" min="0" max="100" step="5">
+            </div>
+          </div>
+        </div>
+        <div class="cfg-power-card">
+          <div style="display:flex;align-items:flex-end;gap:10px;">
+            <div class="cfg-field cfg-checkbox" style="flex:1;margin-bottom:0;">
+              <label><input type="checkbox" id="cfgPowerSkipAheadEnabled"> &#9197;&#65039; Skip Ahead</label>
+            </div>
+            <div class="cfg-field" style="width:88px;margin-bottom:0;">
+              <label>Weight</label>
+              <input type="number" id="cfgPowerSkipAheadWeight" min="0" max="100" step="5">
+            </div>
+            <div class="cfg-field" style="width:88px;margin-bottom:0;">
+              <label>Spaces</label>
+              <input type="number" id="cfgSkipAheadSpaces" min="1" max="39" step="1">
+            </div>
+          </div>
+          <div class="cfg-power-desc">Played on your turn — jumps you forward the set number of spaces, paying the usual GO salary if you pass or land on it.</div>
+        </div>
+        <div class="cfg-power-card">
+          <div style="display:flex;align-items:flex-end;gap:10px;">
+            <div class="cfg-field cfg-checkbox" style="flex:1;margin-bottom:0;">
+              <label><input type="checkbox" id="cfgPowerFreezeEnabled"> &#10052;&#65039; Property Freeze</label>
+            </div>
+            <div class="cfg-field" style="width:88px;margin-bottom:0;">
+              <label>Weight</label>
+              <input type="number" id="cfgPowerFreezeWeight" min="0" max="100" step="5">
+            </div>
+          </div>
+          <div class="cfg-power-desc">Played on your turn — freezes ALL of one opponent's properties, no building, selling, mortgaging, or rent from any of them for their next 2 turns.</div>
+        </div>
+        <div class="cfg-power-card">
+          <div style="display:flex;align-items:flex-end;gap:10px;">
+            <div class="cfg-field cfg-checkbox" style="flex:1;margin-bottom:0;">
+              <label><input type="checkbox" id="cfgPowerSwapEnabled"> &#128256; Swap</label>
+            </div>
+            <div class="cfg-field" style="width:88px;margin-bottom:0;">
+              <label>Weight</label>
+              <input type="number" id="cfgPowerSwapWeight" min="0" max="100" step="5">
+            </div>
+          </div>
+        </div>
+        <div class="cfg-power-card">
+          <div style="display:flex;align-items:flex-end;gap:10px;">
+            <div class="cfg-field cfg-checkbox" style="flex:1;margin-bottom:0;">
+              <label><input type="checkbox" id="cfgPowerPropertySwapEnabled"> &#128260; Property Swap</label>
+            </div>
+            <div class="cfg-field" style="width:88px;margin-bottom:0;">
+              <label>Weight</label>
+              <input type="number" id="cfgPowerPropertySwapWeight" min="0" max="100" step="5">
+            </div>
+          </div>
+          <div class="cfg-power-desc">Fires instantly — swap one of your unbuilt properties for any opponent's unbuilt one.</div>
+        </div>
+        <div class="cfg-power-card">
+          <div style="display:flex;align-items:flex-end;gap:10px;">
+            <div class="cfg-field cfg-checkbox" style="flex:1;margin-bottom:0;">
+              <label><input type="checkbox" id="cfgPowerBankruptcyInsuranceEnabled"> &#128184; Bankruptcy Insurance</label>
+            </div>
+            <div class="cfg-field" style="width:88px;margin-bottom:0;">
+              <label>Weight</label>
+              <input type="number" id="cfgPowerBankruptcyInsuranceWeight" min="0" max="100" step="5">
+            </div>
+          </div>
+          <div class="cfg-power-desc">Fires automatically the moment you'd otherwise go bankrupt for good.</div>
+        </div>
+        <div class="cfg-power-card">
+          <div style="display:flex;align-items:flex-end;gap:10px;">
+            <div class="cfg-field cfg-checkbox" style="flex:1;margin-bottom:0;">
+              <label><input type="checkbox" id="cfgPowerDoubleSalaryEnabled"> &#128181; Double Salary</label>
+            </div>
+            <div class="cfg-field" style="width:88px;margin-bottom:0;">
+              <label>Weight</label>
+              <input type="number" id="cfgPowerDoubleSalaryWeight" min="0" max="100" step="5">
+            </div>
+          </div>
+          <div class="cfg-power-desc">Fires instantly — doubles your very next GO payday.</div>
+        </div>
+        <div class="cfg-power-card">
+          <div style="display:flex;align-items:flex-end;gap:10px;">
+            <div class="cfg-field cfg-checkbox" style="flex:1;margin-bottom:0;">
+              <label><input type="checkbox" id="cfgPowerLoanForgivenessEnabled"> &#127974; Loan Forgiveness</label>
+            </div>
+            <div class="cfg-field" style="width:88px;margin-bottom:0;">
+              <label>Weight</label>
+              <input type="number" id="cfgPowerLoanForgivenessWeight" min="0" max="100" step="5">
+            </div>
+          </div>
+          <div class="cfg-power-desc">Fires instantly — wipes out any bank loan you're carrying.</div>
+        </div>
+        <div class="cfg-power-card">
+          <div style="display:flex;align-items:flex-end;gap:10px;">
+            <div class="cfg-field cfg-checkbox" style="flex:1;margin-bottom:0;">
+              <label><input type="checkbox" id="cfgPowerExtraRollEnabled"> &#128257; Extra Roll</label>
+            </div>
+            <div class="cfg-field" style="width:88px;margin-bottom:0;">
+              <label>Weight</label>
+              <input type="number" id="cfgPowerExtraRollWeight" min="0" max="100" step="5">
+            </div>
+          </div>
+          <div class="cfg-power-desc">Fires instantly — rolls the dice again right away for the same player.</div>
+        </div>
+        <div class="cfg-power-card">
+          <div style="display:flex;align-items:flex-end;gap:10px;">
+            <div class="cfg-field cfg-checkbox" style="flex:1;margin-bottom:0;">
+              <label><input type="checkbox" id="cfgPowerFastForwardEnabled"> &#9193; Fast Forward</label>
+            </div>
+            <div class="cfg-field" style="width:88px;margin-bottom:0;">
+              <label>Weight</label>
+              <input type="number" id="cfgPowerFastForwardWeight" min="0" max="100" step="5">
+            </div>
+          </div>
+          <div class="cfg-power-desc">Fires automatically — cancels your next Bailout or jail turn and frees you completely.</div>
+        </div>
+        <div class="cfg-power-card">
+          <div style="display:flex;align-items:flex-end;gap:10px;">
+            <div class="cfg-field cfg-checkbox" style="flex:1;margin-bottom:0;">
+              <label><input type="checkbox" id="cfgPowerStealCardEnabled"> &#127924; Steal a Card</label>
+            </div>
+            <div class="cfg-field" style="width:88px;margin-bottom:0;">
+              <label>Weight</label>
+              <input type="number" id="cfgPowerStealCardWeight" min="0" max="100" step="5">
+            </div>
+          </div>
+          <div class="cfg-power-desc">Fires instantly — pick any power card an opponent is currently holding and take it.</div>
+        </div>
+        <div class="cfg-power-card">
+          <div class="cfg-team-only-row" id="cfgRowSharedShield" style="display:flex;align-items:flex-end;gap:10px;">
+            <div class="cfg-field cfg-checkbox" style="flex:1;margin-bottom:0;">
+              <label><input type="checkbox" id="cfgPowerSharedShieldEnabled"> &#129309; Shared Shield<span class="cfg-team-only-tag">Team mode only</span></label>
+            </div>
+            <div class="cfg-field" style="width:88px;margin-bottom:0;">
+              <label>Weight</label>
+              <input type="number" id="cfgPowerSharedShieldWeight" min="0" max="100" step="5">
+            </div>
+          </div>
+          <div class="cfg-power-desc">Like Shield, but protects whichever teammate gets charged rent next, not just you.</div>
+        </div>
+        <div class="cfg-power-card">
+          <div class="cfg-team-only-row" id="cfgRowRally" style="display:flex;align-items:flex-end;gap:10px;">
+            <div class="cfg-field cfg-checkbox" style="flex:1;margin-bottom:0;">
+              <label><input type="checkbox" id="cfgPowerRallyEnabled"> &#128227; Rally<span class="cfg-team-only-tag">Team mode only</span></label>
+            </div>
+            <div class="cfg-field" style="width:88px;margin-bottom:0;">
+              <label>Weight</label>
+              <input type="number" id="cfgPowerRallyWeight" min="0" max="100" step="5">
+            </div>
+          </div>
+          <div class="cfg-power-desc">Fires instantly — every active teammate banks one extra roll for their next turn.</div>
+        </div>
+        <div class="cfg-power-card">
+          <div class="cfg-team-only-row" id="cfgRowPooledPayday" style="display:flex;align-items:flex-end;gap:10px;">
+            <div class="cfg-field cfg-checkbox" style="flex:1;margin-bottom:0;">
+              <label><input type="checkbox" id="cfgPowerPooledPaydayEnabled"> &#128184; Pooled Payday<span class="cfg-team-only-tag">Team mode only</span></label>
+            </div>
+            <div class="cfg-field" style="width:88px;margin-bottom:0;">
+              <label>Weight</label>
+              <input type="number" id="cfgPowerPooledPaydayWeight" min="0" max="100" step="5">
+            </div>
+          </div>
+          <div class="cfg-power-desc">Like Rent Doubler, but doubles rent collected by any teammate, not just you.</div>
+        </div>
+        <div class="cfg-power-card">
+          <div class="cfg-team-only-row" id="cfgRowHighRiseHustle" style="display:flex;align-items:flex-end;gap:10px;">
+            <div class="cfg-field cfg-checkbox" style="flex:1;margin-bottom:0;">
+              <label><input type="checkbox" id="cfgPowerHighRiseHustleEnabled"> &#127961; High-Rise Hustle<span class="cfg-team-only-tag">Team mode only</span></label>
+            </div>
+            <div class="cfg-field" style="width:88px;margin-bottom:0;">
+              <label>Weight</label>
+              <input type="number" id="cfgPowerHighRiseHustleWeight" min="0" max="100" step="5">
+            </div>
+          </div>
+          <div class="cfg-power-desc">Played on your turn — halves the cost of your next 2 house/hotel purchases.</div>
+        </div>
+        <div class="cfg-power-card">
+          <div class="cfg-team-only-row" id="cfgRowSabotage" style="display:flex;align-items:flex-end;gap:10px;">
+            <div class="cfg-field cfg-checkbox" style="flex:1;margin-bottom:0;">
+              <label><input type="checkbox" id="cfgPowerSabotageEnabled"> &#128481;&#65039; Sabotage<span class="cfg-team-only-tag">Team mode only</span></label>
+            </div>
+            <div class="cfg-field" style="width:88px;margin-bottom:0;">
+              <label>Weight</label>
+              <input type="number" id="cfgPowerSabotageWeight" min="0" max="100" step="5">
+            </div>
+          </div>
+          <div class="cfg-power-desc">Played on your turn — freezes every tile an opposing team owns in one group, for their next turn.</div>
+        </div>
+      </div>
+      <div class="cfg-hint">Cards tagged <span class="cfg-team-only-tag" style="margin-left:0;">Team mode only</span> are greyed out and can't be drawn while Team mode is off.</div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div class="trade-overlay" id="auctionOverlay">
+  <div class="trade-modal" style="max-width:460px;border-top:2px solid var(--violet);">
+    <div class="trade-top"><div class="confirm-title" style="margin:0;">&#128296; Live auction</div></div>
+    <div class="cfg-body" id="auctionBody"></div>
+  </div>
+</div>
+
+<div class="app" id="gameRoot" style="display:none;">
+
+  <div class="main-col">
+    <div class="topbar">
+      <div class="brand">
+        <div class="brand-mark" id="topbarBrandMark">S</div>
+        <div class="brand-name" id="topbarBrandName">skyline<span>.estates</span></div>
+      </div>
+      <div class="you-are" id="youAreBar">You are: <span id="youAreName">Player 1</span></div>
+      <div style="display:flex;gap:6px;align-items:center;">
+        <div class="reset-btn sound-ctrl" id="soundBtn" title="Sound volume">
+          <button class="sound-mute-btn" id="soundMuteBtn" onclick="toggleTurnSound()" title="Mute/unmute sound"><span id="soundMuteIcon">&#128266;</span></button>
+          <input type="range" class="sound-volume-slider" id="soundVolumeSlider" min="0" max="100" value="100" step="1" oninput="setTurnSoundVolume(this.value)" title="Sound volume">
+          <span class="sound-volume-label" id="soundVolumeLabel">100%</span>
+        </div>
+        <button class="reset-btn" id="camZoomBtn" onclick="toggleCameraPulse()" title="Nudge the camera toward the active player at the start of their turn">&#128269; <span id="camZoomBtnLabel">Turn zoom: off</span></button>
+        <button class="reset-btn" onclick="resetView()">&#8635; Reset camera</button>
+        <button class="reset-btn" onclick="cycleGameTheme()" title="Switch board theme">&#127912; <span id="topbarThemeLabel">Theme: Modern</span></button>
+        <button class="reset-btn" id="spectatorsBtn" onclick="toggleSpectatorsPanel()" title="People who joined mid-game and are waiting to play" style="display:none;">&#128065; <span id="spectatorsBtnLabel">Spectators (0)</span></button>
+        <button class="reset-btn" id="gameOverBtn" onclick="openGameOverSummary()" title="View the end-of-game summary" style="display:none;">&#127942; Summary</button>
+        <button class="reset-btn" onclick="confirmBackToMenu()" title="Return to the main menu">&#8592; <span id="menuBtnLabel">End game</span></button>
+      </div>
+    </div>
+
+    <div class="board-wrap">
+      <div class="gb-stage-wrap" id="stageWrap">
+        <div class="gb-view" id="boardView">
+          <div class="gb-tilt">
+            <div class="gb-board" id="board"></div>
+          </div>
+          <div class="gb-building-layer" id="buildingLayer"></div>
+          <div class="gb-token-layer" id="tokenLayer"></div>
+          <div class="gb-carddraw-layer" id="cardDrawLayer"></div>
+        </div>
+        <div class="gb-hint" id="boardHint">drag to pan &nbsp;·&nbsp; scroll to zoom</div>
+        <div class="reaction-bar" id="reactionBar">
+          <button class="reaction-btn" onclick="sendReaction('👍')" title="React">👍</button>
+          <button class="reaction-btn" onclick="sendReaction('😂')" title="React">😂</button>
+          <button class="reaction-btn" onclick="sendReaction('😮')" title="React">😮</button>
+          <button class="reaction-btn" onclick="sendReaction('😡')" title="React">😡</button>
+          <button class="reaction-btn" onclick="sendReaction('❤️')" title="React">❤️</button>
+          <button class="reaction-btn" onclick="sendReaction('🎉')" title="React">🎉</button>
+        </div>
+      </div>
+      <div class="board-controls">
+        <button class="roll-btn" id="rollBtn" onclick="rollDice()">Roll dice</button>
+        <button class="roll-btn" id="bailBtn" onclick="payBail()" style="background:var(--gold);color:#241d05;display:none;">Pay $100 bail</button>
+        <button class="roll-btn" id="teleportCancelBtn" onclick="cancelTeleportPick()" style="background:var(--pink);color:#2a0a17;display:none;">Cancel teleport</button>
+        <button class="roll-btn" id="sabotageCancelBtn" onclick="cancelSabotagePick()" style="background:var(--pink);color:#2a0a17;display:none;">Cancel sabotage</button>
+        <button class="roll-btn" id="propertySwapCancelBtn" onclick="cancelPropertySwapPick()" style="background:var(--pink);color:#2a0a17;display:none;">Cancel property swap</button>
+        <button class="roll-btn" id="endTurnBtn" onclick="playerEndTurn()" style="background:var(--pink);color:#2a0a17;display:none;">End turn</button>
+        <div class="buy-inline" id="buyPanel">
+          <span class="buy-inline-info">&#127970; <b id="bpName">—</b> &middot; <b id="bpPrice">—</b></span>
+          <button class="buy-btn yes" id="buyYesBtn" onclick="buyDecision(true)">Buy</button>
+          <button class="buy-btn no" onclick="buyDecision(false)">&#128176; Send to auction</button>
+        </div>
+        <div class="roll-result" id="rollResult">Delta's turn — roll the dice</div>
+        <span class="turn-timer-badge" id="turnTimerBadge"></span>
+        <button class="roll-btn" id="auctionBtn" onclick="toggleAuctionPanel()" style="background:var(--violet);color:#1c1533;display:none;">&#128176; Auction</button>
+        <button class="roll-btn" id="loanBtn" onclick="toggleLoanPanel()" style="background:var(--gold);color:#241d05;display:none;">&#127974; Loan</button>
+        <button class="roll-btn" id="sideBetBtn" onclick="toggleSideBetPanel()" style="background:#c58af0;color:#1c0a2e;display:none;">&#127922; Side bet</button>
+        <button class="roll-btn" id="powerCardsBtn" onclick="openPowerCards()" style="background:var(--cyan);color:#04231f;" title="View, use, trade, or relay your power cards">&#127183; <span id="powerCardsBtnLabel">Cards</span></button>
+      </div>
+      <div class="buy-panel" id="buyoutPanel">
+        <div class="bp-info">Buy <b id="buyoutName">—</b> from <b id="buyoutOwner">—</b>?<br>Price: <b id="buyoutPrice">—</b></div>
+        <div class="buy-actions">
+          <button class="buy-btn yes" onclick="buyoutDecision(true)">Buy it out</button>
+          <button class="buy-btn no" onclick="buyoutDecision(false)">No thanks</button>
+        </div>
+      </div>
+      <div class="buy-panel" id="managePanel" style="flex-direction:column;align-items:stretch;max-width:560px;"></div>
+      <div class="buy-panel" id="loanPanel" style="flex-direction:column;align-items:stretch;max-width:420px;">
+        <div style="display:flex;justify-content:flex-end;margin:-4px -4px 4px;"><button class="trade-close" onclick="toggleLoanPanel()">&times;</button></div>
+        <div id="loanPanelBody"></div>
+      </div>
+      <div class="buy-panel" id="sideBetPanel" style="flex-direction:column;align-items:stretch;max-width:460px;">
+        <div style="display:flex;justify-content:flex-end;margin:-4px -4px 4px;"><button class="trade-close" onclick="toggleSideBetPanel()">&times;</button></div>
+        <div id="sideBetPanelBody"></div>
+      </div>
+      <div class="buy-panel" id="spectatorsPanel" style="display:none;flex-direction:column;align-items:stretch;max-width:420px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin:-4px -4px 4px;"><b style="padding:4px 8px;">Waiting to play</b><button class="trade-close" onclick="toggleSpectatorsPanel()">&times;</button></div>
+        <div id="spectatorsPanelBody"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sidebar">
+    <div id="playerCards" class="player-cards"></div>
+
+    <div class="sidebar-bottom-group">
+      <div class="chat-panel">
+        <div class="chat-tabs">
+          <div class="tabs-left">
+            <div class="tab" id="tradesTab" onclick="switchTab('trades')" style="cursor:pointer;">Trades (0)</div>
+            <div class="tab active" id="historyTab" onclick="switchTab('history')" style="cursor:pointer;">History</div>
+          </div>
+        </div>
+        <div class="chat-body" id="chatBody">
+          <div class="msg">
+            <span class="who">Alfred</span><span class="bot-tag">BOT</span><span class="time" id="msgTime"></span>
+            <div>Find all chat commands on our <a href="#">Wiki Page</a></div>
+            <div>Do you have game ideas or feedback? Give your feedback <a href="#">here</a></div>
+          </div>
+        </div>
+        <div class="trades-body" id="tradesBody"></div>
+        <div class="typing-indicator" id="typingIndicator" style="display:none;"></div>
+        <div class="chat-input-row">
+          <input class="chat-input" id="chatInput" placeholder="Send a message…" onkeydown="if(event.key==='Enter') sendChat()" oninput="handleChatInputTyping()">
+          <span class="emoji">&#9786;</span>
+        </div>
+      </div>
+
+      <div class="bottom-btns">
+        <div class="bb" id="fullscreenBtn" onclick="toggleFullscreen()">&#9974; <span id="fullscreenBtnLabel">Fullscreen</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="trade-overlay" id="tileInfoOverlay">
+  <div class="trade-modal" id="tileInfoModal">
+    <div class="trade-top"><button class="trade-close" onclick="closeTileInfo()">&times;</button></div>
+    <div class="ti-head">
+      <div class="ti-flag" id="tiFlag">🏳️</div>
+      <div class="ti-head-text"><div class="ti-name" id="tiName">—</div></div>
+    </div>
+    <div class="ti-owner-row" id="tiOwnerRow">
+      <div class="ti-owner-icon" id="tiOwnerIcon">🏦</div>
+      <div>
+        <div class="ti-owner-name" id="tiOwnerName">Bank</div>
+        <div class="ti-owner-sub" id="tiOwnerSub">Current property owner</div>
+      </div>
+    </div>
+    <div class="ti-stats" id="tiStats"></div>
+    <div class="ti-rentlist" id="tiRentList"></div>
+    <div class="ti-footer">
+      <div class="ti-cash"><span>Your Cash</span><b id="tiCash">$0</b></div>
+      <div class="ti-actions" id="tiActions"></div>
+    </div>
+  </div>
+</div>
+
+<div class="trade-overlay" id="tradeOverlay">
+  <div class="trade-modal" style="border-top:2px solid var(--violet);">
+    <div class="trade-top" style="justify-content:space-between;align-items:center;padding:14px 20px 0;">
+      <div class="confirm-title" id="tradeModalTitle" style="margin:0;">&#8646; Propose a trade</div>
+      <button class="trade-close" onclick="closeTrade()">&times;</button>
+    </div>
+    <div class="trade-sides" id="tradeSides"></div>
+    <div class="trade-actions">
+      <button class="buy-btn yes" id="tradeSendBtn" onclick="submitTradeOffer()">Make offer</button>
+      <button class="buy-btn no" onclick="closeTrade()">Close</button>
+    </div>
+  </div>
+</div>
+
+<div class="trade-overlay" id="powerCardsOverlay">
+  <div class="trade-modal" style="max-width:640px;border-top:2px solid var(--gold);">
+    <div class="trade-top" style="justify-content:space-between;align-items:center;padding:14px 20px 0;">
+      <div class="confirm-title" style="margin:0;">&#127183; Power Cards</div>
+      <button class="trade-close" onclick="closePowerCards()">&times;</button>
+    </div>
+    <div class="pc-body" id="powerCardsBody"></div>
+    <div class="trade-actions">
+      <button class="buy-btn no" onclick="closePowerCards()">Close</button>
+    </div>
+  </div>
+</div>
+
+<div class="trade-overlay" id="auctionPanel">
+  <div class="trade-modal" style="max-width:640px;border-top:2px solid var(--violet);">
+    <div class="trade-top" style="justify-content:space-between;align-items:center;padding:14px 20px 0;">
+      <div class="confirm-title" style="margin:0;">&#128176; Start an Auction</div>
+      <button class="trade-close" onclick="toggleAuctionPanel()">&times;</button>
+    </div>
+    <div class="pc-body" id="auctionPanelBody"></div>
+    <div class="trade-actions">
+      <button class="buy-btn no" onclick="toggleAuctionPanel()">Close</button>
+    </div>
+  </div>
+</div>
+
+<div class="trade-overlay" id="stealCardOverlay">
+  <div class="trade-modal" style="max-width:560px;border-top:2px solid var(--gold);">
+    <div class="trade-top" style="justify-content:space-between;align-items:center;padding:14px 20px 0;">
+      <div class="confirm-title" style="margin:0;">&#127924; Steal a Card</div>
+    </div>
+    <div class="pc-body">
+      <div class="pc-hint">Pick any card below to take it for yourself — the card already fired, so a choice is required to continue your turn.</div>
+      <div id="stealCardBody"></div>
+    </div>
+  </div>
+</div>
+
+<div class="trade-overlay" id="propertySwapOverlay">
+  <div class="trade-modal" style="max-width:520px;border-top:2px solid var(--violet);">
+    <div class="trade-top" style="justify-content:space-between;align-items:center;padding:14px 20px 0;">
+      <div class="confirm-title" style="margin:0;">&#128260; Property Swap</div>
+      <button class="trade-close" onclick="cancelPropertySwapPick()">&times;</button>
+    </div>
+    <div class="pc-body">
+      <div class="ps-steps">
+        <div class="ps-step" id="propertySwapStep1"><span class="ps-step-num">1</span>Give up</div>
+        <div class="ps-step-sep"></div>
+        <div class="ps-step" id="propertySwapStep2"><span class="ps-step-num">2</span>Take</div>
+      </div>
+      <div class="pc-hint" id="propertySwapTitle">Give up one of your properties</div>
+      <div id="propertySwapBody"></div>
+    </div>
+    <div class="trade-actions">
+      <button class="buy-btn no" id="propertySwapBackBtn" onclick="propertySwapBack()" style="display:none;">&larr; Back</button>
+      <button class="buy-btn no" onclick="cancelPropertySwapPick()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+
+
+<div class="confirm-overlay" id="confirmOverlay">
+  <div class="confirm-modal">
+    <div class="confirm-title" id="confirmTitle">Are you sure?</div>
+    <div class="confirm-body" id="confirmBody"></div>
+    <div class="confirm-actions">
+      <button class="buy-btn no" onclick="closeConfirm()">Cancel</button>
+      <button class="buy-btn yes" id="confirmYesBtn" style="background:var(--pink);color:#2a0a17;">Yes, go bankrupt</button>
+    </div>
+  </div>
+</div>
+
+<div class="trade-overlay" id="gameOverOverlay">
+  <div class="trade-modal" style="max-width:760px;">
+    <div class="trade-top" style="justify-content:space-between;align-items:center;padding:14px 20px 0;">
+      <div class="confirm-title" id="gameOverTitle" style="margin:0;">🏁 Game over</div>
+      <button class="trade-close" onclick="closeGameOverSummary()">&times;</button>
+    </div>
+    <div class="go-body" id="gameOverBody"></div>
+    <div class="ti-hint" id="gameOverRematchHint" style="display:none;margin:0 20px 4px;"></div>
+    <div class="trade-actions">
+      <button class="buy-btn no" onclick="closeGameOverSummary()">Close</button>
+      <button class="buy-btn yes" id="gameOverPlayAgainBtn" style="display:none;" onclick="gameOverPlayAgainClicked()">Play again</button>
+      <button class="buy-btn yes" id="gameOverNewGameBtn" onclick="closeGameOverSummary();confirmBackToMenu();">New game</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/game.js"></script>
+<script src="js/theme.js"></script>
+</body>
+</html>
