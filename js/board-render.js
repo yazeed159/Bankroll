@@ -595,13 +595,17 @@ groupTileIdx.forEach(i=>{
   const wrap = document.createElement('div');
   wrap.className = 'gb-building';
   wrap.style.display = 'none'; // hidden until the property actually has a house built on it
-  // one model-viewer per tile; its src is swapped for a bigger BUILDING_LEVELS shape
-  // as houses are built, ending on the hotel model at 5+ — see renderTileHouses().
-  const mv = makeBldgMv(BUILDING_LEVELS[0], 'gb-bldg-house');
-  mv.style.display = 'none';
-  wrap.appendChild(mv);
   buildingLayer.appendChild(wrap);
-  tileHouseEls[i] = {el:wrap, mv, level:-1, sparkEl:null}; // level:-1 = nothing built yet, forces the first build to reveal + set the right model
+  // mv:null — deliberately NOT created here. A <model-viewer> spins up its own WebGL
+  // context and eagerly decodes a GLB the moment it's inserted into the DOM, even
+  // while display:none. Creating one per property (there can be 20+) at board setup
+  // means 20+ WebGL contexts and GLB decodes before a single house is ever built —
+  // costly on load, and risks exceeding the browser's concurrent-WebGL-context limit
+  // (commonly ~16, lower on mobile), which silently evicts older contexts and can
+  // leave buildings failing to render later in the game. renderTileHouses() below
+  // creates the real <model-viewer> lazily, the first time this tile actually needs
+  // one (i.e. the first house going up on a hearthside/skyline board).
+  tileHouseEls[i] = {el:wrap, mv:null, level:-1, sparkEl:null}; // level:-1 = nothing built yet, forces the first build to reveal + set the right model
 });
 function positionBuildings(){
   groupTileIdx.forEach(i=>{

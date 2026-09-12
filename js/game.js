@@ -2296,7 +2296,7 @@ function setFrozenVisual(i, frozen){
 // skyline now shares hearthside's 3D building models (see renderTileHouses below),
 // just at a smaller size so they don't cover the tile's name/price text.
 function renderFlatBuilding(g, houses, theme, anchorEl){
-  g.mv.style.display = 'none';
+  if(g.mv) g.mv.style.display = 'none'; // no-op if this tile has never needed the 3D model-viewer (see lazy creation below)
   // skyline's board is a rotateZ+rotateX 3D perspective diamond; the flat overlay layer
   // (buildingLayer, sibling of the tilted board — see g.el) doesn't share that transform,
   // so a fixed screen-space offset could only ever be tuned right for one edge of the
@@ -2364,6 +2364,14 @@ function renderTileHouses(i){
   // building doesn't obscure the tile's name/price text the way the full
   // hearthside size would.
   if(g.flatWrap){ g.flatWrap.remove(); g.flatWrap=null; }
+  if(!g.mv){
+    // First time this tile has actually needed the 3D model — create the
+    // model-viewer now rather than at board setup (see board-render.js note on
+    // tileHouseEls) so we're not paying for a WebGL context + GLB decode on
+    // properties nobody ever builds on.
+    g.mv = makeBldgMv(BUILDING_LEVELS[0], 'gb-bldg-house');
+    g.el.appendChild(g.mv);
+  }
   const level = Math.min(houses-1, BUILDING_LEVELS.length-1);
   if(level !== g.level || theme !== g.theme){
     if(g.el.style.display==='none') g.el.style.display='';
