@@ -23,15 +23,23 @@ bankroll/
 │   └── styles.css    # all styling, including the three theme skins
 ├── js/
 │   ├── lib-loader.js    # CDN fallback loader for PeerJS
-│   ├── game.js           # game engine: board, rules, networking, UI wiring
+│   ├── board-render.js  # visual board: theme colors, 3D models, tiles, tokens, center plate
+│   ├── cards.js          # power cards + Lucky Wheel/Happy Birthday reveal popup
+│   ├── game.js           # game state, turn engine, and UI wiring
+│   ├── network.js        # multiplayer: host-authoritative PeerJS room, lobby, sync
 │   ├── theme.js          # theme switcher (Modern / Golden / Classic skins)
 │   └── accessibility.js  # modal focus management, live regions, keyboard shortcuts
 ├── assets/
-│   └── logo.svg      # favicon + brand mark
+│   ├── logo.svg          # favicon + brand mark
+│   ├── models/           # GLB building + car models, loaded by <model-viewer> src=
+│   └── sfx/
+│       └── dice-roll.mp3 # dice-roll sound effect
 └── LICENSE
 ```
 
-`game.js` is currently one large file (a straight extraction from an original single-file build). Breaking it into smaller modules (board, network, cards, UI) is a reasonable follow-up contribution.
+`game.js`, `board-render.js`, `cards.js`, and `network.js` are plain global scripts, not ES modules — they share state across files (players, tiles, rollDice, etc. are plain top-level `let`/`const`/`function`, not attached to `window`), so the `<script>` order in `index.html` matters: `board-render.js`, then `cards.js`, then `game.js`, then `network.js`. `game.js` itself is still the biggest file (turn engine, trading, auctions, end-game summary, and UI wiring all together); splitting those further is a reasonable follow-up contribution.
+
+Binary assets (3D models, audio) live under `assets/` as real files, referenced by relative path from JS — not base64-embedded in source. This keeps the JS text-only and diff-friendly, and lets the browser cache/parallel-load the assets normally.
 
 ## Contributing
 

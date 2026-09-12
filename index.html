@@ -548,7 +548,7 @@
         <button class="roll-btn" id="teleportCancelBtn" onclick="cancelTeleportPick()" style="background:var(--pink);color:#2a0a17;display:none;">Cancel teleport<span class="key-hint">X</span></button>
         <button class="roll-btn" id="sabotageCancelBtn" onclick="cancelSabotagePick()" style="background:var(--pink);color:#2a0a17;display:none;">Cancel sabotage<span class="key-hint">X</span></button>
         <button class="roll-btn" id="propertySwapCancelBtn" onclick="cancelPropertySwapPick()" style="background:var(--pink);color:#2a0a17;display:none;">Cancel property swap<span class="key-hint">X</span></button>
-        <button class="roll-btn" id="endTurnBtn" onclick="playerEndTurn()" style="background:var(--pink);color:#2a0a17;display:none;">End turn<span class="hint-row"><span class="key-hint">E</span><span class="key-hint">Space</span></span></button>
+        <button class="roll-btn" id="endTurnBtn" onclick="playerEndTurn()" style="background:var(--pink);color:#2a0a17;display:none;">End turn<span class="key-hint">Space</span></button>
         <div class="buy-inline" id="buyPanel">
           <span class="buy-inline-info">&#127970; <b id="bpName">—</b> &middot; <b id="bpPrice">—</b></span>
           <button class="buy-btn yes" id="buyYesBtn" onclick="buyDecision(true)">Buy<span class="key-hint">Space</span></button>
@@ -613,7 +613,7 @@
 
       <div class="bottom-btns">
         <div class="bb" id="fullscreenBtn" onclick="toggleFullscreen()">&#9974; <span id="fullscreenBtnLabel">Fullscreen</span></div>
-        <div class="bb" id="keyHintsBtn" onclick="showKeyHintsToast()" title="Space roll · E end turn · Q buy · A auction/decline · R bail · X cancel · C cards · Z auto-play — all left-hand, no reaching for Enter or the arrows">&#9000; Controls</div>
+        <div class="bb" id="keyHintsBtn" onclick="showKeyHintsToast()" title="Space roll/end turn · Q buy · A auction/decline · R bail · X cancel · C cards · Z auto-play — all left-hand, no reaching for Enter or the arrows">&#9000; Controls</div>
       </div>
     </div>
   </div>
@@ -745,7 +745,10 @@
   </div>
 </div>
 
+<script src="js/board-render.js"></script>
+<script src="js/cards.js"></script>
 <script src="js/game.js"></script>
+<script src="js/network.js"></script>
 <script src="js/theme.js"></script>
 <script src="js/accessibility.js"></script>
 </body>

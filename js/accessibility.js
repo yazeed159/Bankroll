@@ -131,8 +131,8 @@
      arrow keys, or anywhere on the right side of the board — so the other
      hand (mouse, controller, whatever) never has to touch the keyboard.
        Space - roll / buy / end turn   Q - buy / buy it out
-       E     - end turn                A - send to auction / decline
-       R     - pay bail            X - cancel a pending pick (teleport etc.)
+       R     - pay bail                A - send to auction / decline
+                                    X - cancel a pending pick (teleport etc.)
        C     - open/close power cards
      Only fires during active gameplay — never while a modal is open or while
      typing in any text field (chat, trade amounts, room code, etc.). */
@@ -164,8 +164,6 @@
       else if(clickIfActionable(document.getElementById('buyYesBtn'))) e.preventDefault();
       else if(clickIfActionable(document.getElementById('buyoutYesBtn'))) e.preventDefault();
       else if(clickIfActionable(document.getElementById('endTurnBtn'))) e.preventDefault();
-    }else if(key === 'e'){
-      if(clickIfActionable(document.getElementById('endTurnBtn'))) e.preventDefault();
     }else if(key === 'q'){
       // whichever "yes" action is currently on screen — buying a fresh
       // property or buying out an opponent's — never both at once
