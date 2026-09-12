@@ -1093,6 +1093,28 @@ let netWorthHistory = []; // one snapshot per turn: {turn, afterPid, p1:worth, p
 let currentRollWasDouble = false; // whether the active player's last roll earns them another turn
 window.lastRoll = 7;
 
+/* ============ GAME-END SUPERLATIVES TRACKING ============
+   Lightweight per-player/per-tile counters fed from the various action handlers
+   below (rent, GO, jail, building, trading, auctions, bankruptcy). Nothing here
+   drives gameplay — it's purely fodder for the fun "recap" cards on the
+   end-game summary screen (see buildSuperlatives/renderSuperlatives). Reset
+   fresh in beginGame() alongside everything else. */
+let gameStats = {
+  rentPaid: {}, rentCollected: {}, biggestRent: null, // biggestRent: {amt, payerId, ownerId, tileName}
+  tileLandings: {}, // idx -> times any player landed there
+  doublesRolled: {}, // pid -> count
+  jailVisits: {}, // pid -> times sent to jail
+  housesBuilt: {}, // pid -> houses+hotels built
+  goSalary: {}, // pid -> total collected passing/landing on GO
+  tradesCompleted: 0,
+  auctionsWon: {}, // pid -> items won at auction
+  bankruptciesCaused: {}, // pid (creditor) -> number of players bankrupted
+};
+function bumpStat(bucketName, key, amt){
+  const bucket = gameStats[bucketName];
+  bucket[key] = (bucket[key]||0) + (amt===undefined?1:amt);
+}
+
 /* ============ RULE CONFIG (adjustable from the start menu) ============ */
 let CONFIG = {
   startingCash: 3000,
@@ -1498,6 +1520,7 @@ function doBankrupt(pid, creditorId){
   // unit goes down together — everyone still standing on pid's team, not just
   // pid, is marked bankrupt and forfeits their properties in this same pass
   const unit = teammatesOf(pid).filter(id=>players[id] && players[id].active && !players[id].bankrupt);
+  if(creditorId && !unit.includes(creditorId)) bumpStat('bankruptciesCaused', creditorId);
   if(isDebtor(pid)) pendingDebt = null; // the debt is moot once they're bankrupt
   // figure out who was actually up before we mutate `order`, so we can re-locate
   // them afterward instead of guessing — removing an earlier seat shifts every
@@ -1714,6 +1737,77 @@ function buildNetWorthChartSVG(){
 function renderChartLegend(){
   const ids = PLAYER_IDS.filter(id=>netWorthHistory.some(h=>h[id]!==undefined));
   return ids.map(id=>`<div class="go-legend-item"><span class="go-legend-dot" style="background:${players[id].color}"></span>${escapeHtml(players[id].name)}</div>`).join('');
+}
+/* ---- fun "recap" superlatives (most rent collected, most doubles, biggest
+   single hit, hottest tile, etc.) fed by the gameStats counters bumped
+   throughout play — see the GAME-END SUPERLATIVES TRACKING block up top. */
+function leaderOf(bucket, ids){
+  let bestId=null, bestVal=0;
+  ids.forEach(id=>{ const v=bucket[id]||0; if(v>bestVal){ bestVal=v; bestId=id; } });
+  return bestId ? {id:bestId, val:bestVal} : null;
+}
+function trailerOf(bucket, ids){
+  let bestId=null, bestVal=Infinity;
+  ids.forEach(id=>{ const v=bucket[id]||0; if(v<bestVal){ bestVal=v; bestId=id; } });
+  return bestId!==null ? {id:bestId, val:bestVal} : null;
+}
+function buildSuperlatives(){
+  const ids = PLAYER_IDS.filter(playerWasEverActive);
+  const cards = [];
+  const add = (icon,label,winner,fmtVal)=>{
+    if(!winner || !players[winner.id]) return;
+    const p = players[winner.id];
+    cards.push({icon, label, name:p.name, color:p.color, value:fmtVal(winner.val)});
+  };
+  add('💰','Biggest Landlord', leaderOf(gameStats.rentCollected, ids), v=>`$${fmt(v)} collected in rent`);
+  add('💸','Rent Magnet', leaderOf(gameStats.rentPaid, ids), v=>`$${fmt(v)} paid out in rent`);
+  add('🎲','Dice Wizard', leaderOf(gameStats.doublesRolled, ids), v=>`rolled doubles ${v} time${v===1?'':'s'}`);
+  add('🚔','Repeat Offender', leaderOf(gameStats.jailVisits, ids), v=>`sent to jail ${v} time${v===1?'':'s'}`);
+  add('🏗️','Master Builder', leaderOf(gameStats.housesBuilt, ids), v=>`built ${v} house${v===1?'':'s'}/hotels`);
+  add('🔨','Auction Hound', leaderOf(gameStats.auctionsWon, ids), v=>`won ${v} auction${v===1?'':'s'}`);
+  add('🏦','Salary Champion', leaderOf(gameStats.goSalary, ids), v=>`$${fmt(v)} collected passing GO`);
+  add('🥊','Ruthless', leaderOf(gameStats.bankruptciesCaused, ids), v=>`bankrupted ${v} other player${v===1?'':'s'}`);
+  // opposite-extreme awards: only worth showing if the field wasn't all zeros/ties
+  const rentPaidTotal = Object.values(gameStats.rentPaid).reduce((a,b)=>a+b,0);
+  if(rentPaidTotal>0){
+    const safest = trailerOf(gameStats.rentPaid, ids);
+    add('🧘','Safest Driver', safest, v=>v===0?"never paid a dime in rent":`kept rent down to just $${fmt(v)}`);
+  }
+  const jailTotal = Object.values(gameStats.jailVisits).reduce((a,b)=>a+b,0);
+  if(jailTotal>0){
+    const clean = trailerOf(gameStats.jailVisits, ids);
+    if(clean && clean.val===0) add('😇','Clean Record', clean, ()=>'never once saw the inside of a jail cell');
+  }
+  if(gameStats.biggestRent){
+    const {amt,payerId,ownerId,tileName} = gameStats.biggestRent;
+    const payer=players[payerId], owner=players[ownerId];
+    if(payer && owner){
+      cards.push({icon:'💥', label:'Biggest Single Hit', name:`${payer.name} → ${owner.name}`, color:payer.color, value:`$${fmt(amt)} rent on ${tileName}`});
+    }
+  }
+  const tileEntries = Object.entries(gameStats.tileLandings);
+  if(tileEntries.length){
+    tileEntries.sort((a,b)=>b[1]-a[1]);
+    const [idxStr,count] = tileEntries[0];
+    const tile = tiles[Number(idxStr)];
+    if(tile && count>1) cards.push({icon:'📍', label:'Hottest Address', name:tile.name, color:'var(--text)', value:`landed on ${count} times`});
+  }
+  if(gameStats.tradesCompleted>0){
+    cards.push({icon:'🤝', label:'Dealmaking', name:'This game', color:'var(--text)', value:`${gameStats.tradesCompleted} trade${gameStats.tradesCompleted===1?'':'s'} completed`});
+  }
+  return cards;
+}
+function renderSuperlatives(){
+  const cards = buildSuperlatives();
+  if(!cards.length) return '<div class="go-empty">Not enough happened this game for a highlight reel!</div>';
+  return `<div class="go-superlatives">${cards.map(c=>
+    `<div class="go-super-card">`
+    +`<div class="go-super-icon">${c.icon}</div>`
+    +`<div class="go-super-label">${escapeHtml(c.label)}</div>`
+    +`<div class="go-super-name" style="color:${c.color}">${escapeHtml(c.name)}</div>`
+    +`<div class="go-super-value">${escapeHtml(c.value)}</div>`
+    +`</div>`
+  ).join('')}</div>`;
 }
 function renderOwnershipSummary(){
   const owners={};
@@ -2358,6 +2452,7 @@ function buildHouse(name){
   }
   player.balance -= cost;
   t.houses = houses+1;
+  bumpStat('housesBuilt', pid);
   if(discountUsed) player.highRiseHustleUses--;
   log(`<span class="who" style="color:${player.color}">${player.name}</span> builds ${t.houses>=5?'a <b>hotel</b>':'a house'} on <b>${t.name}</b> (-$${cost}${discountUsed?' — High-Rise Hustle discount!':''}).`);
   refreshUI();
@@ -2626,6 +2721,7 @@ function finalizeAcceptedTrade(id){
   for(const [type,n] of Object.entries(tr.from.cards||{})){ if(n>0){ a[CARD_FIELD[type]]-=n; b[CARD_FIELD[type]]=(b[CARD_FIELD[type]]||0)+n; } }
   for(const [type,n] of Object.entries(tr.to.cards||{})){ if(n>0){ b[CARD_FIELD[type]]-=n; a[CARD_FIELD[type]]=(a[CARD_FIELD[type]]||0)+n; } }
   activeTrades.splice(ix,1);updateTradesTabCount();renderTradesList();
+  gameStats.tradesCompleted = (gameStats.tradesCompleted||0)+1;
   log(`${a.name} and ${b.name} completed a trade.`);
   refreshUI();
 }
@@ -3922,6 +4018,7 @@ function finishRoll(pid, player, a, b, isDouble){
   if(player.inJail){
     if(isDouble){
       player.doublesCount = 0;
+      bumpStat('doublesRolled', pid);
       log(`<span class="who" style="color:${player.color}">${player.name}</span> rolls doubles (${a}-${b}) and breaks out of jail!`);
       player.inJail = false;
       player.jailTurns = 0;
@@ -3947,12 +4044,14 @@ function finishRoll(pid, player, a, b, isDouble){
     player.doublesCount = (player.doublesCount||0)+1;
     if(player.doublesCount>=3){
       player.doublesCount = 0;
+      bumpStat('doublesRolled', pid);
       if(tryAutoJailFree(pid, player)){
         moveToken(pid, a+b);
         return;
       }
       player.inJail = true;
       player.jailTurns = 3;
+      bumpStat('jailVisits', pid);
       player.pos = 10;
       const offset=((PLAYER_IDS.indexOf(pid)%4)-1.5)*9;
       const p10 = tokenAnchorPoint(10);
@@ -3968,6 +4067,7 @@ function finishRoll(pid, player, a, b, isDouble){
       return;
     }
     currentRollWasDouble = true;
+    bumpStat('doublesRolled', pid);
     log(`<span class="who" style="color:${player.color}">${player.name}</span> rolled doubles (${a}-${b}) — moving ${a+b} spaces and going again.`);
   } else {
     player.doublesCount = 0;
@@ -4000,6 +4100,7 @@ function moveToken(pid, steps){
         player.doubleSalaryArmed = false;
       }
       player.balance += amt;
+      bumpStat('goSalary', pid, amt);
       log(`<span class="who" style="color:${player.color}">${player.name}</span> ${landedOnGo ? 'lands exactly on GO and collects' : 'passes GO and collects'} <b>$${fmt(amt)}</b>${doubled ? ' (Double Salary used!)' : ''}.`);
       if(doubled){
         showCardDraw({id:++cardDrawSeq, kind:'power', glyph:'\u{1F4B5}', title:'DOUBLE SALARY USED', who:player.name, text:`Double Salary paid out $${fmt(amt)} at GO.`});
@@ -4019,6 +4120,7 @@ function moveToken(pid, steps){
 function resolveTile(pid, idx){
   const player = players[pid];
   const t = tiles[idx];
+  bumpStat('tileLandings', idx);
   refreshUI();
 
   if(t.corner){
@@ -4030,6 +4132,7 @@ function resolveTile(pid, idx){
       player.pos = 10;
       player.inJail = true;
       player.jailTurns = 3;
+      bumpStat('jailVisits', pid);
       log(`<span class="who" style="color:${player.color}">${player.name}</span> lands on <b>Go To Jail</b> and is locked up for up to 3 turns (roll doubles or pay $${fmt(CONFIG.bail)} to get out).`);
       showCardDraw({id:++cardDrawSeq, kind:'jail', glyph:'\u{1F694}', title:'GO TO JAIL', who:player.name, text:'Sent straight to jail — no passing GO.'});
       playCardPopupSound();
@@ -4293,6 +4396,11 @@ function resolveTile(pid, idx){
   }
   player.balance -= rent;
   owner.balance += rent;
+  bumpStat('rentPaid', pid, rent);
+  bumpStat('rentCollected', t.owner, rent);
+  if(!gameStats.biggestRent || rent>gameStats.biggestRent.amt){
+    gameStats.biggestRent = {amt:rent, payerId:pid, ownerId:t.owner, tileName:t.name};
+  }
   const houseNote = t.houses>0 ? (t.houses>=5?' (hotel)':` (${t.houses} house${t.houses===1?'':'s'})`) : '';
   const rentNotes = [doublerUsed?'Rent Doubler doubled it!':'', pooledPaydayUsed?'Pooled Payday doubled it!':''].filter(Boolean).join(', ');
   log(`<span class="who" style="color:${player.color}">${player.name}</span> lands on <b>${t.name}</b>${houseNote}, owned by <span class="who" style="color:${owner.color}">${owner.name}</span> — pays $${fmt(rent)} rent${rentNotes?` (${rentNotes})`:''}.`);
@@ -6252,6 +6360,7 @@ function resolveAuction(){
         const buyer = players[st.currentBidder];
         buyer.balance -= st.currentBid;
         winners.add(st.currentBidder);
+        bumpStat('auctionsWon', st.currentBidder);
         buyer[field] = (buyer[field]||0) + 1;
         if(auction.seller){ players[auction.seller].balance += st.currentBid; }
         log(`<span class="who" style="color:${buyer.color}">${buyer.name}</span> wins the auction for <b>${meta.name}</b> at $${fmt(st.currentBid)}${auction.seller?` (bought from <span class="who" style="color:${players[auction.seller].color}">${players[auction.seller].name}</span>)`:''}.`);
@@ -6268,6 +6377,7 @@ function resolveAuction(){
       const buyer = players[st.currentBidder];
       buyer.balance -= st.currentBid;
       winners.add(st.currentBidder);
+      bumpStat('auctionsWon', st.currentBidder);
       t.owner = st.currentBidder;
       t.mortgaged = false;
       if(auction.seller){
@@ -7268,6 +7378,11 @@ function beginGame(){
   gameOver = false;
   gameWinnerId = null;
   netWorthHistory = [];
+  gameStats = {
+    rentPaid: {}, rentCollected: {}, biggestRent: null,
+    tileLandings: {}, doublesRolled: {}, jailVisits: {}, housesBuilt: {},
+    goSalary: {}, tradesCompleted: 0, auctionsWon: {}, bankruptciesCaused: {},
+  };
   currentRollWasDouble = false;
   pendingBuy = null;
   pendingBuyout = null;
@@ -7856,7 +7971,7 @@ function rejoinStorageKey(hostId){return 'pt_rejoin_'+hostId;}
 function saveRejoinToken(hostId,token){NET.myRejoinToken=token;try{localStorage.setItem(rejoinStorageKey(hostId),token);}catch(e){}}
 function loadRejoinToken(hostId){try{return localStorage.getItem(rejoinStorageKey(hostId))||null;}catch(e){return null;}}
 function serializeState(includeChat){
-  const st = {v:3,started:NET.started,CONFIG:JSON.parse(JSON.stringify(CONFIG)),bailoutPot,players:JSON.parse(JSON.stringify(players)),tiles:tiles.map(t=>({owner:t.owner||null,houses:t.houses||0,mortgaged:!!t.mortgaged,frozenTurns:t.frozenTurns||0})),order:order.slice(),turnIdx,busy,turnRollSeq,awaitingEndTurn,pendingBuy,pendingBuyout,pendingDebt:pendingDebt?{pid:pendingDebt.pid,creditorId:pendingDebt.creditorId,resume:pendingDebt.resume}:null,propertySwapPick:propertySwapPick?{pid:propertySwapPick.pid,stage:propertySwapPick.stage,myIdx:propertySwapPick.myIdx}:null,stealCardPick:stealCardPick?{pid:stealCardPick.pid}:null,gameOver,gameWinnerId,gameWinnerIds,netWorthHistory,currentRollWasDouble,lastRoll:window.lastRoll||7,lastRollDice:window.lastRollDice||[4,3],cardDraw:cardDraw?{id:cardDraw.id,kind:cardDraw.kind,glyph:cardDraw.glyph,title:cardDraw.title,who:cardDraw.who,text:cardDraw.text,amt:cardDraw.amt}:null,activeTrades:JSON.parse(JSON.stringify(activeTrades)),tradeIdSeq,sideBets:JSON.parse(JSON.stringify(sideBets)),sideBetIdSeq,auction:auction?{items:auction.items.slice(),bids:Object.fromEntries(auction.items.map(idx=>[idx,{currentBid:auction.bids[idx].currentBid,currentBidder:auction.bids[idx].currentBidder,passed:{...auction.bids[idx].passed}}])),seller:auction.seller||null,startBid:auction.startBid,timerSec:auction.timerSec,timeLeft:auction.timeLeft}:null};
+  const st = {v:3,started:NET.started,CONFIG:JSON.parse(JSON.stringify(CONFIG)),bailoutPot,players:JSON.parse(JSON.stringify(players)),tiles:tiles.map(t=>({owner:t.owner||null,houses:t.houses||0,mortgaged:!!t.mortgaged,frozenTurns:t.frozenTurns||0})),order:order.slice(),turnIdx,busy,turnRollSeq,awaitingEndTurn,pendingBuy,pendingBuyout,pendingDebt:pendingDebt?{pid:pendingDebt.pid,creditorId:pendingDebt.creditorId,resume:pendingDebt.resume}:null,propertySwapPick:propertySwapPick?{pid:propertySwapPick.pid,stage:propertySwapPick.stage,myIdx:propertySwapPick.myIdx}:null,stealCardPick:stealCardPick?{pid:stealCardPick.pid}:null,gameOver,gameWinnerId,gameWinnerIds,netWorthHistory,gameStats,currentRollWasDouble,lastRoll:window.lastRoll||7,lastRollDice:window.lastRollDice||[4,3],cardDraw:cardDraw?{id:cardDraw.id,kind:cardDraw.kind,glyph:cardDraw.glyph,title:cardDraw.title,who:cardDraw.who,text:cardDraw.text,amt:cardDraw.amt}:null,activeTrades:JSON.parse(JSON.stringify(activeTrades)),tradeIdSeq,sideBets:JSON.parse(JSON.stringify(sideBets)),sideBetIdSeq,auction:auction?{items:auction.items.slice(),bids:Object.fromEntries(auction.items.map(idx=>[idx,{currentBid:auction.bids[idx].currentBid,currentBidder:auction.bids[idx].currentBidder,passed:{...auction.bids[idx].passed}}])),seller:auction.seller||null,startBid:auction.startBid,timerSec:auction.timerSec,timeLeft:auction.timeLeft}:null};
   // the chat/history log only grows over the course of a game, so re-reading and re-sending
   // its full HTML on every ~300ms tick (even when nothing chat-related changed) bloats every
   // sync message more and more as a long game goes on — that backlog of oversized snapshots
@@ -7959,7 +8074,7 @@ function restoreState(st){if(!st||!(st.v===2||st.v===3))return;NET.executing=tru
 }
 __lobbyKnownActive = null; // game started — reset so a later rejoin/new lobby starts clean
 wireTeamBalances(false); // keep this browser's local getters pointed at whatever pooled figure the host just sent — never re-sum, since a synced balance is already the correct shared total
-bailoutPot=Number(st.bailoutPot)||0;updateBailoutPotLabel();const __prevPendingBuyForSound=pendingBuy;const __prevOwnersForPulse=tiles.map(t=>t.owner);st.tiles.forEach((d,i)=>{if(tiles[i]){tiles[i].owner=d.owner;tiles[i].houses=d.houses;tiles[i].mortgaged=d.mortgaged;tiles[i].frozenTurns=Number(d.frozenTurns)||0;}});order=Array.isArray(st.order)?st.order.filter(id=>players[id]?.active&&!players[id].bankrupt):[];turnIdx=Math.max(0,Math.min(Number(st.turnIdx)||0,Math.max(0,order.length-1)));busy=!!st.busy;turnRollSeq=Number(st.turnRollSeq)||0;awaitingEndTurn=!!st.awaitingEndTurn;pendingBuy=st.pendingBuy;pendingBuyout=st.pendingBuyout;pendingDebt=st.pendingDebt||null;propertySwapPick=st.propertySwapPick||null;stealCardPick=st.stealCardPick||null;const __prevGameOverForSound=gameOver;gameOver=!!st.gameOver;gameWinnerId=st.gameWinnerId||null;gameWinnerIds=Array.isArray(st.gameWinnerIds)?st.gameWinnerIds:(gameWinnerId?[gameWinnerId]:[]);if(Array.isArray(st.netWorthHistory))netWorthHistory=st.netWorthHistory;currentRollWasDouble=!!st.currentRollWasDouble;window.lastRoll=st.lastRoll||7;const __syncIsInitial=document.getElementById('gameRoot').style.display==='none';updateGameOverBtn();if(!__syncIsInitial&&!__prevGameOverForSound&&gameOver){playWinSound();spawnConfetti();setTimeout(openGameOverSummary,1000);}if(!__syncIsInitial&&__prevPendingBuyForSound!=null&&pendingBuy==null&&tiles[__prevPendingBuyForSound]&&tiles[__prevPendingBuyForSound].owner)playBuySound();{const rd=Array.isArray(st.lastRollDice)&&st.lastRollDice.length===2?st.lastRollDice:[4,3];const key=rd[0]+','+rd[1];if(key!==__syncedDiceKey){__syncedDiceKey=key;drawDice(rd[0],rd[1]);if(!__syncIsInitial)playDiceSound();}}if(st.cardDraw){if(shownCardDrawId!==st.cardDraw.id){showCardDraw(st.cardDraw);if(!__syncIsInitial){playCardPopupSound();if(st.cardDraw.kind==='jail')playJailSound();else if(st.cardDraw.kind==='debt')playNegativeSound();}}}else if(shownCardDrawId!==null){hideCardDraw();}{const __prevTradeCount=activeTrades.length;activeTrades=Array.isArray(st.activeTrades)?st.activeTrades:[];if(!__syncIsInitial&&activeTrades.length>__prevTradeCount)playTradeSound();}tradeIdSeq=st.tradeIdSeq||1;sideBets=Array.isArray(st.sideBets)?st.sideBets:[];sideBetIdSeq=st.sideBetIdSeq||1;refreshSideBetPanelIfOpen();if(typeof st.chatHTML==='string'){const chat=document.getElementById('chatBody');if(chat){chat.innerHTML=st.chatHTML;chat.scrollTop=chat.scrollHeight;}}const __wasAuctionOpen=!!auction;if(auction&&auction.interval)clearInterval(auction.interval);auction=null;if(st.auction){if(!__wasAuctionOpen&&!__syncIsInitial)playAuctionSound();const a=st.auction;const items=Array.isArray(a.items)?a.items.slice():[];const bids={};items.forEach(idx=>{const b=(a.bids&&a.bids[idx])||{};bids[idx]={currentBid:Number(b.currentBid)||0,currentBidder:b.currentBidder||null,passed:{...(b.passed||{})}};});auction={items,bids,seller:a.seller||null,startBid:Number(a.startBid)||10,timerSec:Number(a.timerSec)||CONFIG.auctionTimerSec,timeLeft:Number(a.timeLeft)||0,onComplete:null,interval:null,remote:true};document.getElementById('auctionOverlay').classList.add('show');renderAuction();auction.interval=setInterval(()=>{if(!auction)return;auction.timeLeft=Math.max(0,auction.timeLeft-1);renderAuction();if(auction.timeLeft>0)playAuctionTickSound(auction.timeLeft<=3);},1000);}else{document.getElementById('auctionOverlay').classList.remove('show');}tiles.forEach((t,i)=>{if(!purchasable(t))return;if(t.owner){markOwnership(i,teamDisplayColor(t.owner));if(!__syncIsInitial&&t.owner!==__prevOwnersForPulse[i])pulseTile(i,teamDisplayColor(t.owner));}else clearOwnershipRing(i);setMortgageVisual(i,!!t.mortgaged);setFrozenVisual(i,t.frozenTurns>0);});PLAYER_IDS.forEach(pid=>{if(!tokenEls[pid])return;const hide=!players[pid].active||players[pid].bankrupt;tokenEls[pid].style.display=hide?'none':'';if(hide){remoteAnimPos[pid]=players[pid].pos;if(remoteAnimTimers[pid]){clearTimeout(remoteAnimTimers[pid]);remoteAnimTimers[pid]=null;}return;}glideTokenRemote(pid,players[pid].pos);});document.getElementById('startOverlay').classList.add('hide');const gameRootEl=document.getElementById('gameRoot');const firstReveal=gameRootEl.style.display==='none';gameRootEl.style.display='';if(firstReveal){
+bailoutPot=Number(st.bailoutPot)||0;updateBailoutPotLabel();const __prevPendingBuyForSound=pendingBuy;const __prevOwnersForPulse=tiles.map(t=>t.owner);st.tiles.forEach((d,i)=>{if(tiles[i]){tiles[i].owner=d.owner;tiles[i].houses=d.houses;tiles[i].mortgaged=d.mortgaged;tiles[i].frozenTurns=Number(d.frozenTurns)||0;}});order=Array.isArray(st.order)?st.order.filter(id=>players[id]?.active&&!players[id].bankrupt):[];turnIdx=Math.max(0,Math.min(Number(st.turnIdx)||0,Math.max(0,order.length-1)));busy=!!st.busy;turnRollSeq=Number(st.turnRollSeq)||0;awaitingEndTurn=!!st.awaitingEndTurn;pendingBuy=st.pendingBuy;pendingBuyout=st.pendingBuyout;pendingDebt=st.pendingDebt||null;propertySwapPick=st.propertySwapPick||null;stealCardPick=st.stealCardPick||null;const __prevGameOverForSound=gameOver;gameOver=!!st.gameOver;gameWinnerId=st.gameWinnerId||null;gameWinnerIds=Array.isArray(st.gameWinnerIds)?st.gameWinnerIds:(gameWinnerId?[gameWinnerId]:[]);if(Array.isArray(st.netWorthHistory))netWorthHistory=st.netWorthHistory;if(st.gameStats)gameStats=st.gameStats;currentRollWasDouble=!!st.currentRollWasDouble;window.lastRoll=st.lastRoll||7;const __syncIsInitial=document.getElementById('gameRoot').style.display==='none';updateGameOverBtn();if(!__syncIsInitial&&!__prevGameOverForSound&&gameOver){playWinSound();spawnConfetti();setTimeout(openGameOverSummary,1000);}if(!__syncIsInitial&&__prevPendingBuyForSound!=null&&pendingBuy==null&&tiles[__prevPendingBuyForSound]&&tiles[__prevPendingBuyForSound].owner)playBuySound();{const rd=Array.isArray(st.lastRollDice)&&st.lastRollDice.length===2?st.lastRollDice:[4,3];const key=rd[0]+','+rd[1];if(key!==__syncedDiceKey){__syncedDiceKey=key;drawDice(rd[0],rd[1]);if(!__syncIsInitial)playDiceSound();}}if(st.cardDraw){if(shownCardDrawId!==st.cardDraw.id){showCardDraw(st.cardDraw);if(!__syncIsInitial){playCardPopupSound();if(st.cardDraw.kind==='jail')playJailSound();else if(st.cardDraw.kind==='debt')playNegativeSound();}}}else if(shownCardDrawId!==null){hideCardDraw();}{const __prevTradeCount=activeTrades.length;activeTrades=Array.isArray(st.activeTrades)?st.activeTrades:[];if(!__syncIsInitial&&activeTrades.length>__prevTradeCount)playTradeSound();}tradeIdSeq=st.tradeIdSeq||1;sideBets=Array.isArray(st.sideBets)?st.sideBets:[];sideBetIdSeq=st.sideBetIdSeq||1;refreshSideBetPanelIfOpen();if(typeof st.chatHTML==='string'){const chat=document.getElementById('chatBody');if(chat){chat.innerHTML=st.chatHTML;chat.scrollTop=chat.scrollHeight;}}const __wasAuctionOpen=!!auction;if(auction&&auction.interval)clearInterval(auction.interval);auction=null;if(st.auction){if(!__wasAuctionOpen&&!__syncIsInitial)playAuctionSound();const a=st.auction;const items=Array.isArray(a.items)?a.items.slice():[];const bids={};items.forEach(idx=>{const b=(a.bids&&a.bids[idx])||{};bids[idx]={currentBid:Number(b.currentBid)||0,currentBidder:b.currentBidder||null,passed:{...(b.passed||{})}};});auction={items,bids,seller:a.seller||null,startBid:Number(a.startBid)||10,timerSec:Number(a.timerSec)||CONFIG.auctionTimerSec,timeLeft:Number(a.timeLeft)||0,onComplete:null,interval:null,remote:true};document.getElementById('auctionOverlay').classList.add('show');renderAuction();auction.interval=setInterval(()=>{if(!auction)return;auction.timeLeft=Math.max(0,auction.timeLeft-1);renderAuction();if(auction.timeLeft>0)playAuctionTickSound(auction.timeLeft<=3);},1000);}else{document.getElementById('auctionOverlay').classList.remove('show');}tiles.forEach((t,i)=>{if(!purchasable(t))return;if(t.owner){markOwnership(i,teamDisplayColor(t.owner));if(!__syncIsInitial&&t.owner!==__prevOwnersForPulse[i])pulseTile(i,teamDisplayColor(t.owner));}else clearOwnershipRing(i);setMortgageVisual(i,!!t.mortgaged);setFrozenVisual(i,t.frozenTurns>0);});PLAYER_IDS.forEach(pid=>{if(!tokenEls[pid])return;const hide=!players[pid].active||players[pid].bankrupt;tokenEls[pid].style.display=hide?'none':'';if(hide){remoteAnimPos[pid]=players[pid].pos;if(remoteAnimTimers[pid]){clearTimeout(remoteAnimTimers[pid]);remoteAnimTimers[pid]=null;}return;}glideTokenRemote(pid,players[pid].pos);});document.getElementById('startOverlay').classList.add('hide');const gameRootEl=document.getElementById('gameRoot');const firstReveal=gameRootEl.style.display==='none';gameRootEl.style.display='';if(firstReveal){
   // #gameRoot was display:none until just now, so text/board measurements taken before
   // this point were all against a 0x0 layout — redo them, and only on this first reveal.
   // This used to run on every restoreState() (i.e. on every single state sync from the
