@@ -44,7 +44,7 @@ const CAR_LIST = [
   {key:'sedan_sports', label:'Sports Sedan', color:'#5a9bff'},
   {key:'taxi', label:'Taxi', color:'#f0d24b'},
   {key:'race', label:'Race Car', color:'#e35b5b'},
-  {key:'delivery', label:'Delivery Van', color:'#3a3d42'},
+  {key:'delivery', label:'Delivery Van', color:'#a8adb8'},
   {key:'police', label:'Police Car', color:'#565b66'},
 ];
 // Color is no longer chosen independently — each car has a fixed color, and a
