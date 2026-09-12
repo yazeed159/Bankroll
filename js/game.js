@@ -38,13 +38,13 @@ const CAR_MODELS = {
    the setup screen; CAR_LIST drives the picker UI and the default cycling
    assignment, CAR_MODELS holds the actual embedded model data. */
 const CAR_LIST = [
-  {key:'sedan', label:'Sedan', color:'#9aa0a8'},
+  {key:'sedan', label:'Sedan', color:'#f2f3f5'},
   {key:'suv', label:'SUV', color:'#3fe07a'},
   {key:'hatchback_sports', label:'Hot Hatch', color:'#ff9f5a'},
   {key:'sedan_sports', label:'Sports Sedan', color:'#5a9bff'},
   {key:'taxi', label:'Taxi', color:'#f0d24b'},
   {key:'race', label:'Race Car', color:'#e35b5b'},
-  {key:'delivery', label:'Delivery Van', color:'#b5651d'},
+  {key:'delivery', label:'Delivery Van', color:'#3a3d42'},
   {key:'police', label:'Police Car', color:'#565b66'},
 ];
 // Color is no longer chosen independently — each car has a fixed color, and a

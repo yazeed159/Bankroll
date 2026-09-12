@@ -3339,6 +3339,20 @@ body.spectator-mode #powerCardsBtn{display:none !important;}
   background:rgba(0,0,0,.22);box-shadow:0 0 0 1px rgba(255,255,255,.18) inset;
   color:inherit;opacity:.85;vertical-align:middle;
 }
+/* Buy and End-turn buttons: the shortcut hint sits on its own small row
+   under the label instead of beside it, so swapping "Q" for "Space" (or
+   showing two hints, E + Space) never widens the button — same width as
+   the plain label, just a couple of px taller for the extra row. Uses ID
+   selectors so this wins over every theme's .buy-btn/.roll-btn padding
+   without needing a copy of this rule per theme. */
+#buyYesBtn, #endTurnBtn{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:2px;padding-top:7px;padding-bottom:6px;
+}
+#buyYesBtn .key-hint, #endTurnBtn .key-hint{
+  margin-left:0;line-height:1.1;
+}
+#endTurnBtn .hint-row{display:flex;gap:4px;}
 /* Auto-play toggle — a plain roll-btn until it's switched on, at which point
    it gets a pulsing gold ring so it stays obviously "live" while it's
    clicking through your turns for you (easy to miss otherwise, since it
