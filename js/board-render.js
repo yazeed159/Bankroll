@@ -528,7 +528,15 @@ tiles.forEach((t,i)=>{
 
   if(t.price || t.icon==='park'){
     const pr = mk('div','gb-tprice is-rent',inner);
-    pr.textContent = t.icon==='park' ? `$${fmt(bailoutPot)}` : t.price;
+    // Just a placeholder at initial board-build time: fmt()/bailoutPot live in
+    // game.js, which hasn't loaded yet (board-render.js runs first, since
+    // game.js needs PLAYER_IDS etc. from below). Calling fmt(bailoutPot) here
+    // threw a ReferenceError that killed the rest of this script before it
+    // ever reached the PLAYER_IDS/PLAYER_DEFAULTS declarations further down —
+    // which is why every landing-page button (defined in game.js, and relying
+    // on those constants) ended up frozen. The real value gets painted in
+    // immediately after by updateBailoutPotLabel() once the game actually starts.
+    pr.textContent = t.icon==='park' ? '$0' : t.price;
     tilePriceEls[i] = pr;
     tilePriceBgEls[i] = pr;
   }
