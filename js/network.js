@@ -26,7 +26,7 @@ const DISCONNECT_GRACE_MS = 30000; // how long a mid-game seat is held open for 
 const MIGRATION_WAIT_MS = 12000; // how long a guest waits for a replacement host to appear before giving up and returning to the menu
 let __lobbyKnownActive = null; // guest-side "who was in the lobby last sync" snapshot — see restoreState()
 const original={};
-const ACTIONS=['rollDice','payBail','changeCarLobby','changeNameLobby','setReadyLobby','useJailFreeCard','useShieldCard','useSharedShieldCard','useRentDoublerCard','usePooledPaydayCard','resolveTeleportTo','useFreezeCard','resolveSabotageTo','useSwapCard','usePropertySwapCard','cancelPropertySwapPick','resolvePropertySwapPick','propertySwapBack','resolveStealCardPick','relayCard','buyDecision','buyoutDecision','playerEndTurn','borrowLoan','repayLoan','buildHouse','sellHouse','toggleMortgage','buyoutFromManage','buyoutFromInfo','acceptTrade','declineTrade','auctionBid','auctionPass','startOwnAuction','startCardAuction','startCombinedAuction','placeSideBet','cancelSideBet','toggleWantsRematch'];
+const ACTIONS=['rollDice','payBail','changeCarLobby','changeNameLobby','setReadyLobby','joinTeamSelf','useJailFreeCard','useShieldCard','useSharedShieldCard','useRentDoublerCard','usePooledPaydayCard','resolveTeleportTo','useFreezeCard','resolveSabotageTo','useSwapCard','usePropertySwapCard','cancelPropertySwapPick','resolvePropertySwapPick','propertySwapBack','resolveStealCardPick','relayCard','buyDecision','buyoutDecision','playerEndTurn','borrowLoan','repayLoan','buildHouse','sellHouse','toggleMortgage','buyoutFromManage','buyoutFromInfo','acceptTrade','declineTrade','auctionBid','auctionPass','startOwnAuction','startCardAuction','startCombinedAuction','placeSideBet','cancelSideBet','toggleWantsRematch'];
 /* ---- menu navigation: host can end the game for everyone, guests can leave for themselves ---- */
 function updateMenuBtnLabel(){
   const el=document.getElementById('menuBtnLabel');
@@ -208,13 +208,11 @@ function exitLobbyUI(){
 function renderLobbyPlayers(){
   const list=document.getElementById('lobbyList'); if(!list)return;
   const joined=PLAYER_IDS.filter(pid=>players[pid].active);
+  updateLobbyModeTabs();
   if(!joined.length){list.innerHTML='<div class="lobby-empty">No one has joined yet.</div>';updateLobbyStartBtnState();return;}
   // only the host, and only while actually running an online room, can remove
   // someone else from the lobby — a local/offline setup has no one to kick
   const canKick = NET.host && NET.online;
-  // team pairing is a host-only call too (local or online) — guests just see
-  // whatever team badge the host has assigned them
-  const canAssignTeam = NET.host;
   // rebuilding the own-name <input> from scratch on every render (host syncs land
   // every ~300ms, plus any lobby action re-renders this whole list) would yank
   // focus/caret away mid-keystroke — snapshot it here and restore it after the
@@ -228,18 +226,15 @@ function renderLobbyPlayers(){
     if(pid==='p1')tags+='<span class="lobby-tag">Host</span>';
     if(isYou)tags+='<span class="lobby-tag you">You</span>';
     if(!isYou)tags+=`<span class="lobby-tag ${p.ready?'ready':''}">${p.ready?'Ready':'Not ready'}</span>`;
+    // team assignment itself now lives entirely in the Teams-tab board below
+    // (see renderTeamsBoard) — this row just shows a read-only badge of
+    // whichever team you've currently landed on, if any.
+    const teamCtl = (CONFIG.teamsEnabled && p.team)
+      ? `<span class="lobby-tag" style="color:${TEAM_COLORS[p.team]||'var(--gold)'};border-color:${TEAM_COLORS[p.team]||'var(--gold)'};">Team ${p.team}</span>`
+      : '';
     const kickBtn = (canKick && pid!=='p1')
       ? `<button class="lobby-kick-btn" title="Remove ${escapeHtml(p.name)}" onclick="confirmKickPlayer('${pid}')">&times;</button>`
       : '';
-    let teamCtl='';
-    if(CONFIG.teamsEnabled){
-      if(canAssignTeam){
-        const opts=['',...TEAM_LETTERS].map(t=>`<option value="${t}" ${(p.team||'')===t?'selected':''}>${t?('Team '+t):'No team'}</option>`).join('');
-        teamCtl=`<select class="lobby-team-select" title="Assign ${escapeHtml(p.name)} to a team" onchange="setPlayerTeam('${pid}',this.value)">${opts}</select>`;
-      } else if(p.team){
-        teamCtl=`<span class="lobby-tag" style="color:var(--gold);border-color:var(--gold);">Team ${p.team}</span>`;
-      }
-    }
     // your own row gets a live-editable name field (instead of plain text) and a
     // Ready toggle; everyone else just sees a name + the "Not ready"/"Ready" badge
     // above, updated live as it syncs in.
@@ -259,7 +254,7 @@ function renderLobbyPlayers(){
     // everyone else you're set.
     const carRowHtml = isYou ? `<div class="car-pick-row" id="carPickRow" data-pid="${pid}"></div>` : '';
     return `<div class="lobby-player-row">${kickBtn}<div class="lobby-player-top"><span class="lobby-player-dot" style="background:${p.color}"></span>${nameHtml}${readyBtn}</div><div class="lobby-player-meta">${tags}${teamCtl}</div>${carRowHtml}</div>`;
-  }).join('');
+  }).join('') + (CONFIG.teamsEnabled ? renderTeamsBoard(joined) : '');
   syncCarPickRow();
   if(nameInputHadFocus){
     const el=document.getElementById('lobbyNameInput');
@@ -267,6 +262,84 @@ function renderLobbyPlayers(){
   }
   updateLobbyStartBtnState();
 }
+/* ---- Teams-tab board: an alliance-pairing UI that sits below the normal
+   player list whenever CONFIG.teamsEnabled is on. Unlike the old single
+   per-row <select> (host-only), this lets ANY player move themselves onto
+   any team with one tap — the host additionally keeps a small × on each
+   chip to reassign someone else, for organizing sides or fixing a mistake.
+   Purely a lobby-time affordance; teamOf()/sameTeam() in game.js are what
+   actually consult players[pid].team once the game is running. ---- */
+function renderTeamsBoard(joined){
+  const canOverride = NET.host;
+  const unassigned = joined.filter(pid=>!players[pid].team);
+  const unassignedHTML = unassigned.length
+    ? `<div class="team-unassigned"><div class="team-unassigned-label">Not on a team yet</div><div class="team-col-body">${unassigned.map(pid=>teamChipHTML(pid,canOverride)).join('')}</div></div>`
+    : '';
+  const cols = TEAM_LETTERS.map(letter=>{
+    const members = joined.filter(pid=>players[pid].team===letter);
+    const isMine = !!(players[youAre] && players[youAre].team===letter);
+    const iAmReady = !!(players[youAre] && players[youAre].ready);
+    const chipsHTML = members.length ? members.map(pid=>teamChipHTML(pid,canOverride)).join('') : `<div class="team-col-empty">No one yet</div>`;
+    const joinBtn = iAmReady ? '' : (isMine
+      ? `<button type="button" class="team-join-btn leave" onclick="joinTeamSelf('')">Leave team</button>`
+      : `<button type="button" class="team-join-btn" onclick="joinTeamSelf('${letter}')">Join Team ${letter}</button>`);
+    return `<div class="team-column ${isMine?'is-mine':''}" style="--team-accent:${TEAM_COLORS[letter]}">
+      <div class="team-col-head"><span class="team-col-swatch"></span>Team ${letter}<span class="team-col-count">${members.length}</span></div>
+      <div class="team-col-body">${chipsHTML}</div>
+      ${joinBtn}
+    </div>`;
+  }).join('');
+  return `<div class="lobby-teams-intro">Pick a team below — everyone can switch anytime before the host starts the game.</div>${unassignedHTML}<div class="lobby-teams-grid">${cols}</div>`;
+}
+function teamChipHTML(pid, canOverride){
+  const p = players[pid];
+  const isYou = pid===youAre;
+  const removeBtn = (canOverride && p.team)
+    ? `<button type="button" class="team-chip-remove" title="Move ${escapeHtml(p.name)} back to unassigned" onclick="setPlayerTeam('${pid}','')">&times;</button>`
+    : '';
+  return `<div class="team-chip ${isYou?'is-you':''}"><span class="team-chip-dot" style="background:${p.color}"></span><span class="team-chip-name">${escapeHtml(p.name)}</span>${pid==='p1'?'<span class="team-chip-host" title="Host">&#9733;</span>':''}${removeBtn}</div>`;
+}
+/* the tab bar itself: reflects the current mode for everyone, but only the
+   host can actually click through — guests see it greyed out with a tooltip
+   explaining why, same treatment as the old host-only team <select>. */
+function updateLobbyModeTabs(){
+  const wrap = document.getElementById('lobbyModeTabs');
+  if(!wrap) return;
+  wrap.querySelectorAll('.lobby-mode-tab').forEach(btn=>{
+    const isTeamsBtn = btn.dataset.mode==='teams';
+    btn.classList.toggle('active', isTeamsBtn===!!CONFIG.teamsEnabled);
+    btn.disabled = !NET.host;
+    btn.title = NET.host ? '' : 'Only the host can change the game mode';
+  });
+}
+/* host-only: flips the whole lobby (and eventual game) between free-for-all
+   and team mode — the actual mode flag CONFIG.teamsEnabled already drives
+   everything downstream (teamOf/sameTeam in game.js, the team-only power
+   cards, shared team balances, etc.), this just gives it a one-tap lobby
+   control instead of only living in the Rules & setup menu. */
+function setLobbyTeamsMode(on){
+  if(!NET.host || NET.started) return;
+  on = !!on;
+  if(CONFIG.teamsEnabled===on) return;
+  CONFIG.teamsEnabled = on;
+  renderLobbyPlayers();
+  if(NET.online) sendState();
+}
+window.setLobbyTeamsMode = setLobbyTeamsMode;
+/* self-serve team join/leave — any player (host or guest) may call this on
+   their OWN seat only; unlike setPlayerTeam (host-only, can target anyone)
+   this always resolves against youAre, so it's safe to register in ACTIONS
+   and relay from a guest exactly like changeCarLobby/setReadyLobby below. */
+function joinTeamSelf(teamLetter){
+  if(NET.started) return;
+  const pid = youAre;
+  const player = players[pid];
+  if(!player || !player.active) return;
+  if(player.ready) return; // locked while ready, same as name/car — leave the team first via "Not ready"
+  player.team = teamLetter || null;
+  renderLobbyPlayers();
+}
+window.joinTeamSelf = joinTeamSelf;
 /* The car picker's <model-viewer> elements load a full 3D model each, and
    renderLobbyPlayers() used to rebuild them from raw HTML on every single
    call — which happens on every keystroke while typing your name AND on
@@ -338,12 +411,12 @@ function updateLobbyStartBtnState(){
    pattern of the host mutating shared state directly and letting the normal state
    sync (or a local re-render) carry it to everyone else */
 function setPlayerTeam(pid, teamLetter){
-  if(!NET.host || !players[pid]) return;
+  if(!NET.host || NET.started || !players[pid]) return;
   players[pid].team = teamLetter || null;
   renderLobbyPlayers();
   if(NET.online) sendState();
 }
-window.setPlayerTeam = setPlayerTeam; // called from the lobby's team <select onchange="...">, which resolves in global scope
+window.setPlayerTeam = setPlayerTeam; // host-only override — called from each team chip's × in renderTeamsBoard (see network.js); self-assignment for everyone else goes through joinTeamSelf instead
 /* ---- host: remove a player from the room, whether still in the lobby or
    already mid-game — mirrors what happens when a guest disconnects on their
    own, just triggered by the host instead of a dropped connection ---- */
@@ -1161,7 +1234,7 @@ async function setupGuestPeer(hostId){
   }catch(e){NET.online=false;setNetStatus('PeerJS unavailable',false);alert('Online multiplayer could not start.\n\n'+(e?.message||e));}
 }
 const originalStartNewGame=window.startNewGame, originalJoin=window.joinWithCode;
-ACTIONS.forEach(name=>{original[name]=window[name];window[name]=function(...args){if(NET.online&&!NET.host&&!NET.executing){if(name==='setReadyLobby'||name==='changeCarLobby'||name==='changeNameLobby'){
+ACTIONS.forEach(name=>{original[name]=window[name];window[name]=function(...args){if(NET.online&&!NET.host&&!NET.executing){if(name==='setReadyLobby'||name==='changeCarLobby'||name==='changeNameLobby'||name==='joinTeamSelf'){
       // Lobby actions used to ONLY sendCommand() and wait for the host's echo to come
       // back before this guest's own screen showed anything — on a slow/flaky
       // connection that read as "the ready button is stuck" even when it worked fine.

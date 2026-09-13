@@ -141,13 +141,6 @@
   font-size:11px;color:var(--text-dim);line-height:1.4;margin-top:6px;
 }
 .cfg-team-only-row.cfg-team-only-inactive ~ .cfg-power-desc{opacity:.45;}
-/* ===== alliance/team mode: lobby pairing control (theme-agnostic) ===== */
-.lobby-team-select{
-  background:var(--panel-2);border:1px solid var(--line);color:var(--text);
-  font-size:10.5px;font-weight:600;border-radius:6px;padding:3px 5px;
-  margin-left:5px;flex-shrink:0;cursor:pointer;max-width:88px;
-}
-.lobby-team-select:hover{border-color:var(--cyan);}
 .disc-badge.show{display:flex;}
 /* ===== team merge-vote: whole team weighs in on an incoming trade instead of one person deciding (theme-agnostic) ===== */
 .trade-vote-status{background:var(--panel);border-radius:10px;padding:9px 10px;margin-bottom:10px;}
@@ -3302,10 +3295,6 @@ body.spectator-mode #powerCardsBtn{display:none !important;}
   font-size:14px;line-height:1;cursor:pointer;transition:.15s;
 }
 .lobby-kick-btn:hover{color:#fb7185;border-color:rgba(251,113,133,.4);background:rgba(251,113,133,.08);}
-.lobby-team-select{
-  background:rgba(0,0,0,.35);border:1px solid rgba(255,255,255,.12);color:#e9eaf3;
-  border-radius:7px;font-size:10.5px;font-weight:700;padding:3px 6px;
-}
 /* re-skin the shared .chat-input / .action-pill components specifically when
    they show up inside a lobby card, so they match this design regardless of
    the currently selected board theme (equal-specificity + later in the
@@ -3334,6 +3323,80 @@ body.spectator-mode #powerCardsBtn{display:none !important;}
 
 .lobby-waiting{font-size:13px;color:#989ab0;text-align:center;padding:6px 0 2px;}
 .lobby-ready-note{font-size:12.5px;color:#f2b84b;text-align:center;padding:4px 0 10px;font-weight:600;}
+
+/* ---- lobby mode tabs: Free-for-all vs Teams — a host-only switch that swaps
+   the whole lobby-grid contents between the flat player list and the team
+   board below, rather than just toggling one inline dropdown per row. ---- */
+.lobby-mode-tabs{
+  display:flex;gap:6px;background:rgba(0,0,0,.28);border:1px solid rgba(255,255,255,.08);
+  border-radius:14px;padding:4px;margin-bottom:14px;
+}
+.lobby-mode-tab{
+  flex:1;background:none;border:none;border-radius:11px;padding:9px 8px;
+  font-family:"Sora";font-size:12.5px;font-weight:700;color:#8a8ca3;cursor:pointer;
+  transition:.15s;white-space:nowrap;
+}
+.lobby-mode-tab:hover:not(:disabled){color:#e9eaf3;}
+.lobby-mode-tab.active{background:rgba(34,211,238,.14);color:#22d3ee;box-shadow:inset 0 0 0 1px rgba(34,211,238,.35);}
+.lobby-mode-tab:disabled{cursor:not-allowed;opacity:.55;}
+.lobby-mode-hint{font-size:11.5px;color:#75778e;text-align:center;margin:-6px 0 12px;}
+
+/* ---- team board: replaces .lobby-grid's flat list while Teams mode is on.
+   Unassigned players sit in a horizontal holding strip up top; each team gets
+   its own accented column with a live member list and a self-serve join
+   button, so anyone (not just the host) can move themselves between teams. ---- */
+.lobby-teams-intro{font-size:12px;color:#8a8ca3;text-align:center;margin-bottom:12px;line-height:1.5;}
+.team-unassigned{
+  background:rgba(255,255,255,.03);border:1px dashed rgba(255,255,255,.14);
+  border-radius:14px;padding:10px 12px;margin-bottom:14px;
+}
+.team-unassigned-label{font-size:10px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#75778e;margin-bottom:8px;}
+.team-unassigned .team-col-body{display:flex;flex-wrap:wrap;gap:7px;}
+.lobby-teams-grid{
+  display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:8px;
+}
+.team-column{
+  --team-accent:#22d3ee;
+  position:relative;background:rgba(255,255,255,.035);
+  border:1px solid rgba(255,255,255,.09);border-top:3px solid var(--team-accent);
+  border-radius:14px;padding:12px;display:flex;flex-direction:column;gap:9px;
+  transition:.15s;
+}
+.team-column.is-mine{background:color-mix(in srgb, var(--team-accent) 10%, rgba(255,255,255,.035));box-shadow:0 0 0 1px var(--team-accent);}
+.team-col-head{
+  display:flex;align-items:center;gap:7px;font-family:"Sora";font-size:13px;font-weight:700;color:#e9eaf3;
+}
+.team-col-swatch{width:10px;height:10px;border-radius:50%;background:var(--team-accent);box-shadow:0 0 8px 1px var(--team-accent);flex-shrink:0;}
+.team-col-count{
+  margin-left:auto;font-size:10.5px;font-weight:800;color:#989ab0;background:rgba(0,0,0,.3);
+  border-radius:999px;padding:2px 8px;
+}
+.team-col-body{display:flex;flex-direction:column;gap:6px;min-height:30px;}
+.team-col-empty{font-size:11px;color:#6c6e83;font-style:italic;padding:4px 0;}
+.team-chip{
+  display:flex;align-items:center;gap:7px;background:rgba(0,0,0,.28);
+  border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:6px 8px;font-size:12.5px;font-weight:600;
+}
+.team-chip.is-you{border-color:var(--team-accent);}
+.team-chip-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;box-shadow:0 0 0 2px rgba(255,255,255,.1);}
+.team-chip-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.team-chip-host{color:#f2b84b;font-size:11px;flex-shrink:0;}
+.team-chip-remove{
+  flex-shrink:0;background:none;border:none;color:#6c6e83;font-size:14px;line-height:1;
+  cursor:pointer;padding:0 2px;transition:.15s;
+}
+.team-chip-remove:hover{color:#fb7185;}
+.team-join-btn{
+  margin-top:auto;background:rgba(255,255,255,.05);border:1px solid var(--team-accent);
+  color:var(--team-accent);border-radius:9px;padding:7px 8px;font-size:11.5px;font-weight:700;
+  cursor:pointer;transition:.15s;font-family:"Inter";
+}
+.team-join-btn:hover{background:var(--team-accent);color:#0b0c14;}
+.team-join-btn.leave{border-color:rgba(255,255,255,.16);color:#989ab0;}
+.team-join-btn.leave:hover{background:rgba(255,255,255,.1);color:#e9eaf3;}
+@media (max-width:480px){
+  .lobby-teams-grid{grid-template-columns:1fr;}
+}
 /* ---- keyboard shortcut badges — a tiny label pinned to the bottom edge of
    the button with position:absolute, so it never takes up flow space: the
    button's name stays exactly where it'd sit with no hint at all (dead

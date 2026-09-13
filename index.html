@@ -69,6 +69,10 @@
           </div>
         </div>
         <div class="lobby-note" id="lobbyColorNote" style="display:none;"></div>
+        <div class="lobby-mode-tabs" id="lobbyModeTabs">
+          <button type="button" class="lobby-mode-tab" data-mode="ffa" onclick="setLobbyTeamsMode(false)">&#127922; Free-for-all</button>
+          <button type="button" class="lobby-mode-tab" data-mode="teams" onclick="setLobbyTeamsMode(true)">&#129309; Teams</button>
+        </div>
         <div class="lobby-grid" id="lobbyList"></div>
         <div class="lobby-waiting" id="lobbyWaitingText" style="display:none;">Waiting for the host to start the game&hellip;</div>
         <div class="lobby-ready-note" id="lobbyReadyNote" style="display:none;"></div>
@@ -476,6 +480,54 @@
             </div>
           </div>
           <div class="cfg-power-desc">Played on your turn — freezes every tile an opposing team owns in one group, for their next turn.</div>
+        </div>
+        <div class="cfg-power-card">
+          <div style="display:flex;align-items:flex-end;gap:10px;">
+            <div class="cfg-field cfg-checkbox" style="flex:1;margin-bottom:0;">
+              <label><input type="checkbox" id="cfgPowerNudgeEnabled"> &#128073; Nudge</label>
+            </div>
+            <div class="cfg-field" style="width:88px;margin-bottom:0;">
+              <label>Weight</label>
+              <input type="number" id="cfgPowerNudgeWeight" min="0" max="100" step="5">
+            </div>
+          </div>
+          <div class="cfg-power-desc">Played on your turn — nudges your token 1–3 spaces forward or back, then resolves wherever you land.</div>
+        </div>
+        <div class="cfg-power-card">
+          <div style="display:flex;align-items:flex-end;gap:10px;">
+            <div class="cfg-field cfg-checkbox" style="flex:1;margin-bottom:0;">
+              <label><input type="checkbox" id="cfgPowerTollRefundEnabled"> &#129470; Toll Refund</label>
+            </div>
+            <div class="cfg-field" style="width:88px;margin-bottom:0;">
+              <label>Weight</label>
+              <input type="number" id="cfgPowerTollRefundWeight" min="0" max="100" step="5">
+            </div>
+          </div>
+          <div class="cfg-power-desc">Instantly refunds the last rent you paid, if any.</div>
+        </div>
+        <div class="cfg-power-card">
+          <div style="display:flex;align-items:flex-end;gap:10px;">
+            <div class="cfg-field cfg-checkbox" style="flex:1;margin-bottom:0;">
+              <label><input type="checkbox" id="cfgPowerHalfShieldEnabled"> &#128304; Half Shield</label>
+            </div>
+            <div class="cfg-field" style="width:88px;margin-bottom:0;">
+              <label>Weight</label>
+              <input type="number" id="cfgPowerHalfShieldWeight" min="0" max="100" step="5">
+            </div>
+          </div>
+          <div class="cfg-power-desc">Blocks half (rounded down) of the next rent charged to you.</div>
+        </div>
+        <div class="cfg-power-card">
+          <div style="display:flex;align-items:flex-end;gap:10px;">
+            <div class="cfg-field cfg-checkbox" style="flex:1;margin-bottom:0;">
+              <label><input type="checkbox" id="cfgPowerTheftEnabled"> &#129689; Theft</label>
+            </div>
+            <div class="cfg-field" style="width:88px;margin-bottom:0;">
+              <label>Weight</label>
+              <input type="number" id="cfgPowerTheftWeight" min="0" max="100" step="5">
+            </div>
+          </div>
+          <div class="cfg-power-desc">Instantly steals 10% of the richest other player's cash.</div>
         </div>
       </div>
       <div class="cfg-hint">Cards tagged <span class="cfg-team-only-tag" style="margin-left:0;">Team mode only</span> are greyed out and can't be drawn while Team mode is off.</div>

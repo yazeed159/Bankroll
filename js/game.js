@@ -6,6 +6,11 @@ const players = {};
 PLAYER_IDS.forEach((id,i)=>{const car=CAR_LIST[i%CAR_LIST.length].key; players[id]={id,name:PLAYER_DEFAULTS[i][0],balance:1500,pos:0,color:colorForCar(car),car,inJail:false,jailTurns:0,bankrupt:false,active:i===0,doublesCount:0,loan:0,loanTermTurns:0,skipNextTurn:false,reconnecting:false,discDeadline:0,rentDoublerCharges:0,jailFreeCards:0,shieldCharges:0,teleportCards:0,skipAheadCards:0,propertyFreezeCards:0,swapCards:0,propertySwapCards:0,bankruptcyInsuranceCharges:0,fastForwardCards:0,sharedShieldCharges:0,extraRollCredits:0,pooledPaydayCards:0,highRiseHustleCards:0,sabotageCards:0,nudgeCards:0,halfShieldCharges:0,halfShieldArmed:false,lastRentPaid:0,shieldArmed:false,rentDoublerGroup:null,doubleSalaryCards:0,loanForgivenessCards:0,sharedShieldArmed:false,pooledPaydayArmed:false,team:null,ready:false,wantsRematch:false};});
 // letters available for alliance/team mode pairings — up to 4 teams of 2 across the 8 seats
 const TEAM_LETTERS = ['A','B','C','D'];
+// a distinct accent color per team letter, purely cosmetic — used to color-code
+// each team's column in the lobby's Teams-tab board (see renderTeamsBoard in
+// network.js) and its "is-mine" highlight glow. Not used anywhere in actual
+// gameplay logic, just so the four teams read as visually distinct at a glance.
+const TEAM_COLORS = {A:'#22d3ee', B:'#f2b84b', C:'#a78bfa', D:'#fb7185'};
 syncTokenVisibility(); // only the initial player (p1) has a car until others actually join
 let order = PLAYER_IDS.slice();
 let turnIdx = 0;
@@ -84,7 +89,7 @@ let CONFIG = {
   luckyWheelPowerOnly: true, // true (default): Lucky Wheel tile always draws a power card instead, and the tile itself relabels/re-skins on the board (see updateSpecialTileVisuals()). false: it always draws cash instead, never a power card.
   bdayPowerOnly: true, // true (default): Happy Birthday tile always draws a power card, never cash. false: it always draws its cash bonus instead, and the tile itself relabels/re-skins on the board.
   powerCardsEnabled: { shield:true, rentDoubler:true, jailFree:true, teleport:true, skipAhead:true, propertyFreeze:true, swap:true, propertySwap:true, bankruptcyInsurance:true, doubleSalary:true, loanForgiveness:true, extraRoll:true, fastForward:true, stealCard:true, sharedShield:true, rally:true, pooledPayday:true, highRiseHustle:true, sabotage:true, nudge:true, tollRefund:true, halfShield:true, theft:true },
-  powerCardWeights:  { shield:25,   rentDoubler:25,   jailFree:25,   teleport:25,   skipAhead:25,   propertyFreeze:25,   swap:25,   propertySwap:25,   bankruptcyInsurance:25,   doubleSalary:25,   loanForgiveness:25,   extraRoll:25,   fastForward:25,   stealCard:25,   sharedShield:25,   rally:25,   pooledPayday:25,   highRiseHustle:25,   sabotage:25,   nudge:25,   tollRefund:25,   halfShield:25,   theft:25 }, // relative draw weight among the enabled cards — sharedShield/rally/pooledPayday/sabotage are additionally gated by CONFIG.teamsEnabled itself (see pickPowerCard); Discount (highRiseHustle) is no longer team-only. All weights kept equal so every power card is equally likely to be drawn — no settings-menu toggle for these four yet, tune the numbers here directly.
+  powerCardWeights:  { shield:25,   rentDoubler:25,   jailFree:25,   teleport:25,   skipAhead:25,   propertyFreeze:25,   swap:25,   propertySwap:25,   bankruptcyInsurance:25,   doubleSalary:25,   loanForgiveness:25,   extraRoll:25,   fastForward:25,   stealCard:25,   sharedShield:25,   rally:25,   pooledPayday:25,   highRiseHustle:25,   sabotage:25,   nudge:25,   tollRefund:25,   halfShield:25,   theft:25 }, // relative draw weight among the enabled cards — sharedShield/rally/pooledPayday/sabotage are additionally gated by CONFIG.teamsEnabled itself (see pickPowerCard); Discount (highRiseHustle) is no longer team-only. Every entry here now has a matching enable-checkbox + weight field in the settings menu (see openConfigMenu/saveConfigMenu and encodeConfig/decodeConfig) — these are just the fallback defaults.
   skipAheadSpaces: 5, // how many spaces forward a drawn Skip Ahead card instantly moves its player — fixed, doesn't wrap into a GO bonus
 
   sideBetsEnabled: false // lets any non-active player wager cash against the active player's next roll — purely social, never touches properties/rent
@@ -5535,6 +5540,10 @@ function encodeConfig(cfg){
     ppe:cfg.powerCardsEnabled.pooledPayday?1:0, ppw:cfg.powerCardWeights.pooledPayday,
     hhe:cfg.powerCardsEnabled.highRiseHustle?1:0, hhw:cfg.powerCardWeights.highRiseHustle,
     sab:cfg.powerCardsEnabled.sabotage?1:0, sabw:cfg.powerCardWeights.sabotage,
+    nde:cfg.powerCardsEnabled.nudge?1:0, ndw:cfg.powerCardWeights.nudge,
+    tre:cfg.powerCardsEnabled.tollRefund?1:0, trw:cfg.powerCardWeights.tollRefund,
+    hse:cfg.powerCardsEnabled.halfShield?1:0, hsw:cfg.powerCardWeights.halfShield,
+    the:cfg.powerCardsEnabled.theft?1:0, thw:cfg.powerCardWeights.theft,
     sbe:cfg.sideBetsEnabled?1:0
   };
   try{ return 'WE-' + btoa(JSON.stringify(payload)).replace(/=+$/,''); }
@@ -5586,7 +5595,11 @@ function decodeConfig(code){
         rally: payload.rle===undefined ? true : !!payload.rle,
         pooledPayday: payload.ppe===undefined ? true : !!payload.ppe,
         highRiseHustle: payload.hhe===undefined ? true : !!payload.hhe,
-        sabotage: payload.sab===undefined ? true : !!payload.sab
+        sabotage: payload.sab===undefined ? true : !!payload.sab,
+        nudge: payload.nde===undefined ? true : !!payload.nde,
+        tollRefund: payload.tre===undefined ? true : !!payload.tre,
+        halfShield: payload.hse===undefined ? true : !!payload.hse,
+        theft: payload.the===undefined ? true : !!payload.the
       },
       powerCardWeights: {
         shield: Number.isFinite(Number(payload.sw)) ? Math.max(0, Number(payload.sw)) : 25,
@@ -5607,7 +5620,11 @@ function decodeConfig(code){
         rally: Number.isFinite(Number(payload.rlw)) ? Math.max(0, Number(payload.rlw)) : 25,
         pooledPayday: Number.isFinite(Number(payload.ppw)) ? Math.max(0, Number(payload.ppw)) : 25,
         highRiseHustle: Number.isFinite(Number(payload.hhw)) ? Math.max(0, Number(payload.hhw)) : 25,
-        sabotage: Number.isFinite(Number(payload.sabw)) ? Math.max(0, Number(payload.sabw)) : 25
+        sabotage: Number.isFinite(Number(payload.sabw)) ? Math.max(0, Number(payload.sabw)) : 25,
+        nudge: Number.isFinite(Number(payload.ndw)) ? Math.max(0, Number(payload.ndw)) : 25,
+        tollRefund: Number.isFinite(Number(payload.trw)) ? Math.max(0, Number(payload.trw)) : 25,
+        halfShield: Number.isFinite(Number(payload.hsw)) ? Math.max(0, Number(payload.hsw)) : 25,
+        theft: Number.isFinite(Number(payload.thw)) ? Math.max(0, Number(payload.thw)) : 25
       },
       sideBetsEnabled: payload.sbe===undefined ? false : !!payload.sbe,
       skipAheadSpaces: Math.min(39, Math.max(1, Number(payload.sas)||5))
@@ -5722,6 +5739,14 @@ function openConfigMenu(){
   document.getElementById('cfgPowerHighRiseHustleWeight').value = CONFIG.powerCardWeights.highRiseHustle;
   document.getElementById('cfgPowerSabotageEnabled').checked = CONFIG.powerCardsEnabled.sabotage;
   document.getElementById('cfgPowerSabotageWeight').value = CONFIG.powerCardWeights.sabotage;
+  document.getElementById('cfgPowerNudgeEnabled').checked = CONFIG.powerCardsEnabled.nudge;
+  document.getElementById('cfgPowerNudgeWeight').value = CONFIG.powerCardWeights.nudge;
+  document.getElementById('cfgPowerTollRefundEnabled').checked = CONFIG.powerCardsEnabled.tollRefund;
+  document.getElementById('cfgPowerTollRefundWeight').value = CONFIG.powerCardWeights.tollRefund;
+  document.getElementById('cfgPowerHalfShieldEnabled').checked = CONFIG.powerCardsEnabled.halfShield;
+  document.getElementById('cfgPowerHalfShieldWeight').value = CONFIG.powerCardWeights.halfShield;
+  document.getElementById('cfgPowerTheftEnabled').checked = CONFIG.powerCardsEnabled.theft;
+  document.getElementById('cfgPowerTheftWeight').value = CONFIG.powerCardWeights.theft;
 
   document.getElementById('cfgSideBetsEnabled').checked = CONFIG.sideBetsEnabled;
 
@@ -5837,7 +5862,11 @@ function saveConfigMenu(){
     rally: document.getElementById('cfgPowerRallyEnabled').checked,
     pooledPayday: document.getElementById('cfgPowerPooledPaydayEnabled').checked,
     highRiseHustle: document.getElementById('cfgPowerHighRiseHustleEnabled').checked,
-    sabotage: document.getElementById('cfgPowerSabotageEnabled').checked
+    sabotage: document.getElementById('cfgPowerSabotageEnabled').checked,
+    nudge: document.getElementById('cfgPowerNudgeEnabled').checked,
+    tollRefund: document.getElementById('cfgPowerTollRefundEnabled').checked,
+    halfShield: document.getElementById('cfgPowerHalfShieldEnabled').checked,
+    theft: document.getElementById('cfgPowerTheftEnabled').checked
   };
   const wOf = id => { const v = Math.max(0, parseInt(document.getElementById(id).value)); return Number.isFinite(v) ? v : 0; };
   CONFIG.powerCardWeights = {
@@ -5859,7 +5888,11 @@ function saveConfigMenu(){
     rally: wOf('cfgPowerRallyWeight'),
     pooledPayday: wOf('cfgPowerPooledPaydayWeight'),
     highRiseHustle: wOf('cfgPowerHighRiseHustleWeight'),
-    sabotage: wOf('cfgPowerSabotageWeight')
+    sabotage: wOf('cfgPowerSabotageWeight'),
+    nudge: wOf('cfgPowerNudgeWeight'),
+    tollRefund: wOf('cfgPowerTollRefundWeight'),
+    halfShield: wOf('cfgPowerHalfShieldWeight'),
+    theft: wOf('cfgPowerTheftWeight')
   };
   CONFIG.skipAheadSpaces = Math.min(39, Math.max(1, parseInt(document.getElementById('cfgSkipAheadSpaces').value) || 5));
 
