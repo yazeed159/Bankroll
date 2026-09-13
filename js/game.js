@@ -84,6 +84,8 @@ let CONFIG = {
   turnTimerEnabled: false,
   turnTimerSec: 45,
 
+  speedX2Enabled: false, // 2x game speed: halves the dice/token-movement/card-reveal pacing delays (see spd() below). Settable here pre-game, or toggled live mid-game from the board's topbar Speed button — but only the host can flip it there (see toggleGameSpeed() in network.js); it then rides along on the normal CONFIG sync like any other rule, same as turnTimerEnabled above.
+
   teamsEnabled: false, // alliance/team mode — paired players (see players[pid].team) share one bank and win together
 
   luckyWheelPowerOnly: true, // true (default): Lucky Wheel tile always draws a power card instead, and the tile itself relabels/re-skins on the board (see updateSpecialTileVisuals()). false: it always draws cash instead, never a power card.
@@ -124,17 +126,17 @@ function houseCost(t){
   const price = parseInt(t.price.replace('$',''));
   return Math.max(20, Math.round(price/2/10)*10);
 }
-/* the price a build button should show/charge for pid right now — halved
+/* the price to actually charge pid for buying tile t right now — halved
    (rounded to the nearest $10, same rounding used everywhere else in this
-   file) whenever they're holding a Discount card, regardless of which house
-   level this particular build is. Doesn't consume anything itself — that
-   only happens in buildHouse() once a purchase actually goes through, so
-   simply looking at this to render a button's price tag is always safe. */
-function houseCostForBuild(t, pid){
-  const cost = houseCost(t);
+   file) whenever they're holding a Discount card. Doesn't consume anything
+   itself — that only happens in buyDecision()/buyPropertyAnywhere() once a
+   purchase actually goes through, so this is always safe to call just to
+   render a price tag. */
+function propertyBuyPrice(t, pid){
+  const price = parseInt(t.price.replace('$',''));
   const player = players[pid];
-  if(player && player.highRiseHustleCards>0) return Math.max(10, Math.round(cost/2/10)*10);
-  return cost;
+  if(player && player.highRiseHustleCards>0) return Math.max(10, Math.round(price/2/10)*10);
+  return price;
 }
 function mortgageValue(t){
   const price = parseInt(t.price.replace('$',''));
@@ -375,7 +377,7 @@ function checkBankrupt(pid, creditorId, resume){
     showCardDraw({id:++cardDrawSeq, kind:'power', glyph:'\u{1F4B8}', title:'BANKRUPTCY INSURANCE USED', who:player.name, text:`Bankruptcy Insurance cancelled $${fmt(owed)} in debt.`});
     playCardPopupSound();
     if(cardDrawTimer) clearTimeout(cardDrawTimer);
-    cardDrawTimer = setTimeout(()=>{ cardDrawTimer = null; hideCardDraw(); }, CARD_DRAW_MS);
+    cardDrawTimer = setTimeout(()=>{ cardDrawTimer = null; hideCardDraw(); }, spd(CARD_DRAW_MS));
     refreshUI();
     return false;
   }
@@ -392,7 +394,7 @@ function checkBankrupt(pid, creditorId, resume){
   playCardPopupSound();
   playNegativeSound();
   if(cardDrawTimer) clearTimeout(cardDrawTimer);
-  cardDrawTimer = setTimeout(()=>{ cardDrawTimer = null; hideCardDraw(); }, CARD_DRAW_MS);
+  cardDrawTimer = setTimeout(()=>{ cardDrawTimer = null; hideCardDraw(); }, spd(CARD_DRAW_MS));
   refreshUI();
   return true;
 }
@@ -411,7 +413,7 @@ function tryAutoFireInsuranceOnReceive(pid){
   showCardDraw({id:++cardDrawSeq, kind:'power', glyph:'\u{1F4B8}', title:'BANKRUPTCY INSURANCE USED', who:player.name, text:`Bankruptcy Insurance cancelled $${fmt(owed)} in debt.`});
   playCardPopupSound();
   if(cardDrawTimer) clearTimeout(cardDrawTimer);
-  cardDrawTimer = setTimeout(()=>{ cardDrawTimer = null; hideCardDraw(); }, CARD_DRAW_MS);
+  cardDrawTimer = setTimeout(()=>{ cardDrawTimer = null; hideCardDraw(); }, spd(CARD_DRAW_MS));
   refreshUI();
 }
 
@@ -455,7 +457,7 @@ function declareBankrupt(pid){
         showCardDraw({id:++cardDrawSeq, kind:'power', glyph:'\u{1F4B8}', title:'BANKRUPTCY INSURANCE USED', who:player.name, text:'Bankruptcy Insurance cancelled the bankruptcy.'});
         playCardPopupSound();
         if(cardDrawTimer) clearTimeout(cardDrawTimer);
-        cardDrawTimer = setTimeout(()=>{ cardDrawTimer = null; hideCardDraw(); }, CARD_DRAW_MS);
+        cardDrawTimer = setTimeout(()=>{ cardDrawTimer = null; hideCardDraw(); }, spd(CARD_DRAW_MS));
         refreshUI();
       },
       'Yes, go bankrupt'
@@ -1185,8 +1187,7 @@ function renderManage(pid){
         const houses = t.houses||0;
         const isFullSet = ownsGroup(pid,g);
         const label = houses>=5 ? 'Hotel built' : (houses===0 ? 'No houses' : houses+' house'+(houses===1?'':'s'));
-        const cost = houseCostForBuild(t, pid);
-        const discountTag = (players[pid]&&players[pid].highRiseHustleCards>0) ? ' <span style="color:var(--cyan);font-size:11px;">(Discount)</span>' : '';
+        const cost = houseCost(t);
         const unevenBlock = CONFIG.evenBuildRule && houses>groupMin;
         const isFrozen = (t.frozenTurns||0)>0;
         const buildDisabled = houses>=5 || t.mortgaged || unevenBlock || isFrozen;
@@ -1195,7 +1196,7 @@ function renderManage(pid){
           <div class="bp-info"><b>${t.name}</b>${isFullSet?'<span class="mgmt-tag monopoly">Set</span>':''}${t.mortgaged?'<span class="mgmt-tag mortgaged">Mortgaged</span>':''}${isFrozen?`<span class="mgmt-tag" style="background:rgba(45,212,191,.16);color:var(--cyan);">&#10052;&#65039; Frozen (${t.frozenTurns})</span>`:''}<br>${label}${unevenBlock?' <span style="color:var(--text-dim);font-size:11px;">(build evenly first)</span>':''}${isFrozen?' <span style="color:var(--cyan);font-size:11px;">(frozen — no building/selling)</span>':''}</div>
           <div class="buy-actions">
             <button class="buy-btn no" ${houses>0?(canSell?'':'disabled'):'disabled style="visibility:hidden;"'} onclick="sellHouse('${t.name}')">Sell house (+$${Math.round(houseCost(t)/2/10)*10})</button>
-            <button class="buy-btn yes" ${buildDisabled?'disabled':''} onclick="buildHouse('${t.name}')">+ Build ($${cost})</button>${discountTag}
+            <button class="buy-btn yes" ${buildDisabled?'disabled':''} onclick="buildHouse('${t.name}')">+ Build ($${cost})</button>
           </div>
         </div>`;
       });
@@ -1402,8 +1403,7 @@ function buildHouse(name){
   }
   const houses = t.houses||0;
   if(houses>=5) return;
-  const discountUsed = player.highRiseHustleCards>0; // Discount card burns on the very next house/hotel purchase, any level
-  const cost = houseCostForBuild(t, pid);
+  const cost = houseCost(t);
   if(player.balance < cost){
     log(`<span class="who" style="color:${player.color}">${player.name}</span> can't afford to build on <b>${t.name}</b>.`);
     return;
@@ -1411,8 +1411,7 @@ function buildHouse(name){
   player.balance -= cost;
   t.houses = houses+1;
   bumpStat('housesBuilt', pid);
-  if(discountUsed) player.highRiseHustleCards--;
-  log(`<span class="who" style="color:${player.color}">${player.name}</span> builds ${t.houses>=5?'a <b>hotel</b>':'a house'} on <b>${t.name}</b> (-$${cost}${discountUsed?' — Discount card used!':''}).`);
+  log(`<span class="who" style="color:${player.color}">${player.name}</span> builds ${t.houses>=5?'a <b>hotel</b>':'a house'} on <b>${t.name}</b> (-$${cost}).`);
   refreshUI();
   renderManage(pid);
 }
@@ -2007,6 +2006,7 @@ function refreshUI(){
   // version of this function, since a throw partway through aborted every
   // statement after it, including the button sync. Each piece now fails on
   // its own, logs so it's actually debuggable, and lets the rest continue.
+  try{ applySpeedUI(); }catch(err){ console.error('refreshUI: applySpeedUI failed', err); }
   try{ refreshTilePriceLabels(); }catch(err){ console.error('refreshUI: refreshTilePriceLabels failed', err); }
   try{ checkTurnSound(); }catch(err){ console.error('refreshUI: checkTurnSound failed', err); }
   try{
@@ -2536,7 +2536,7 @@ function performRoll(pid){
     document.getElementById('rollResult').textContent = `${player.name} rolled ${a} + ${b} = ${a+b}`;
     if(sideBets.length) resolveSideBets(pid, a, b, isDouble);
     finishRoll(pid, player, a, b, isDouble);
-  }, 1500);
+  }, spd(1500));
 }
 
 function finishRoll(pid, player, a, b, isDouble){
@@ -2586,7 +2586,7 @@ function finishRoll(pid, player, a, b, isDouble){
       playCardPopupSound();
       playJailSound();
       if(cardDrawTimer) clearTimeout(cardDrawTimer);
-      cardDrawTimer = setTimeout(()=>{ cardDrawTimer = null; hideCardDraw(); }, CARD_DRAW_MS);
+      cardDrawTimer = setTimeout(()=>{ cardDrawTimer = null; hideCardDraw(); }, spd(CARD_DRAW_MS));
       refreshUI();
       readyForEndTurn(pid);
       return;
@@ -2601,6 +2601,31 @@ function finishRoll(pid, player, a, b, isDouble){
   moveToken(pid, a+b);
 }
 
+/* ---- 2x game speed ----------------------------------------------------------
+   Wrap any ms delay that's purely "watching the game play out" (dice landing,
+   the token hopping tile-by-tile, a drawn card sitting on screen) in spd(ms) so
+   it halves under CONFIG.speedX2Enabled — never a delay that's actually someone's
+   decision time (the turn timer, an auction countdown), which stays real
+   regardless of this setting. Safe to call from board-render.js/cards.js too
+   (both load before this file, but only ever call spd() from inside a callback
+   that fires later, once every script has finished loading) — same forward-
+   reference pattern the rest of this codebase already relies on for CONFIG/NET. */
+function spd(ms){ return CONFIG.speedX2Enabled ? Math.round(ms/2) : ms; }
+/* Keeps the topbar's Speed button — and the body class the "2x game speed" CSS
+   block in styles.css keys off of, for the dice/token CSS transitions spd()
+   itself can't reach — in sync with CONFIG.speedX2Enabled, however it changed
+   (a local host toggle, or a synced CONFIG arriving from the host). Called from
+   refreshUI() so it stays current for guests too, not just the host who set it. */
+function applySpeedUI(){
+  document.body.classList.toggle('speed-x2', !!CONFIG.speedX2Enabled);
+  const btn = document.getElementById('speedBtn');
+  if(!btn) return;
+  const lbl = document.getElementById('speedBtnLabel');
+  if(lbl) lbl.textContent = 'Speed: ' + (CONFIG.speedX2Enabled ? '2x' : '1x');
+  const canToggle = !(NET.online && !NET.host);
+  btn.disabled = !canToggle;
+  btn.title = canToggle ? 'Toggle 2x game speed' : 'Only the host can change game speed';
+}
 function moveToken(pid, steps){
   const player = players[pid];
   let remaining = steps;
@@ -2631,13 +2656,13 @@ function moveToken(pid, steps){
         showCardDraw({id:++cardDrawSeq, kind:'power', glyph:'\u{1F4B5}', title:'DOUBLE SALARY USED', who:player.name, text:`Double Salary paid out $${fmt(amt)} at GO.`});
         playCardPopupSound();
         if(cardDrawTimer) clearTimeout(cardDrawTimer);
-        cardDrawTimer = setTimeout(()=>{ cardDrawTimer = null; hideCardDraw(); }, CARD_DRAW_MS);
+        cardDrawTimer = setTimeout(()=>{ cardDrawTimer = null; hideCardDraw(); }, spd(CARD_DRAW_MS));
       }
       playRentSound();
       refreshUI();
     }
     remaining--;
-    setTimeout(stepOnce, 280);
+    setTimeout(stepOnce, spd(280));
   };
   stepOnce();
 }
@@ -2663,7 +2688,7 @@ function resolveTile(pid, idx){
       playCardPopupSound();
       playJailSound();
       if(cardDrawTimer) clearTimeout(cardDrawTimer);
-      cardDrawTimer = setTimeout(()=>{ cardDrawTimer = null; hideCardDraw(); }, CARD_DRAW_MS);
+      cardDrawTimer = setTimeout(()=>{ cardDrawTimer = null; hideCardDraw(); }, spd(CARD_DRAW_MS));
       const offset=((PLAYER_IDS.indexOf(pid)%4)-1.5)*9;
       const p10 = tokenAnchorPoint(10);
       setTokenPos(pid, p10.x+offset, p10.y, {instant:true, pos:10, reverse:true});
@@ -2708,7 +2733,7 @@ function resolveTile(pid, idx){
     showCardDraw({id:++cardDrawSeq, kind:'tax', glyph:'\u{1F9FE}', title:t.name.toUpperCase(), who:player.name, text:`Paid ${t.name.toLowerCase()} to the bank.`, amt:-amt});
     playCardPopupSound();
     if(cardDrawTimer) clearTimeout(cardDrawTimer);
-    cardDrawTimer = setTimeout(()=>{ cardDrawTimer = null; hideCardDraw(); }, CARD_DRAW_MS);
+    cardDrawTimer = setTimeout(()=>{ cardDrawTimer = null; hideCardDraw(); }, spd(CARD_DRAW_MS));
     if(checkBankrupt(pid, null, {type:'finish'})) return;
     finishTurnStep(pid);
     return;
@@ -2734,7 +2759,7 @@ function resolveTile(pid, idx){
         // no need to wait for the popup to clear before rolling again; the popup
         // just fades out on its own timer below while the reroll happens right away.
         log(`<span class="who" style="color:${player.color}">${player.name}</span> rolls again — <b>Extra Roll</b>!`);
-        cardDrawTimer = setTimeout(()=>{ cardDrawTimer = null; hideCardDraw(); }, CARD_DRAW_MS);
+        cardDrawTimer = setTimeout(()=>{ cardDrawTimer = null; hideCardDraw(); }, spd(CARD_DRAW_MS));
         refreshUI();
         performRoll(pid);
         return;
@@ -2745,15 +2770,18 @@ function resolveTile(pid, idx){
         // stepwise glide + footstep sounds as a normal dice move) instead of
         // silently teleporting, and pays out the usual GO salary/bonus if the
         // jump passes over or lands squarely on GO — moveToken() already
-        // handles that the same way a rolled move does.
+        // handles that the same way a rolled move does. Beat before the jump:
+        // hold the token on the wheel/gift tile for a moment with the card
+        // popup up so it's clear the SKIP AHEAD draw is what sent it flying,
+        // rather than it looking like an ordinary extra move.
         const spaces = Math.min(39, Math.max(1, Number(CONFIG.skipAheadSpaces) || 5));
         log(`<span class="who" style="color:${player.color}">${player.name}</span> jumps ${spaces} spaces ahead!`);
-        cardDrawTimer = setTimeout(()=>{ cardDrawTimer = null; hideCardDraw(); }, CARD_DRAW_MS);
+        cardDrawTimer = setTimeout(()=>{ cardDrawTimer = null; hideCardDraw(); }, spd(CARD_DRAW_MS));
         refreshUI();
-        moveToken(pid, spaces);
+        setTimeout(()=>{ moveToken(pid, spaces); }, spd(1000));
         return;
       }
-      cardDrawTimer = setTimeout(()=>{ cardDrawTimer = null; hideCardDraw(); }, CARD_DRAW_MS);
+      cardDrawTimer = setTimeout(()=>{ cardDrawTimer = null; hideCardDraw(); }, spd(CARD_DRAW_MS));
       refreshUI();
       if(stealCardPick){ return; } // Steal a Card paused the turn to wait on the player's pick — resolveStealCardPick() calls finishTurnStep() itself once that's done
       finishTurnStep(pid);
@@ -2771,7 +2799,7 @@ function resolveTile(pid, idx){
       // card is purely cosmetic now — it fades itself out on its own timer below and
       // no longer holds up the turn, so resolve the tile immediately.
       if(cardDrawTimer) clearTimeout(cardDrawTimer);
-      cardDrawTimer = setTimeout(()=>{ cardDrawTimer = null; hideCardDraw(); }, CARD_DRAW_MS);
+      cardDrawTimer = setTimeout(()=>{ cardDrawTimer = null; hideCardDraw(); }, spd(CARD_DRAW_MS));
     } else if(shownCardDrawId!==null){
       hideCardDraw();
     }
@@ -2796,21 +2824,22 @@ function resolveTile(pid, idx){
       if(powerOnly.type==='extraRoll'){
         // see matching comment in the Lucky Wheel branch above
         log(`<span class="who" style="color:${player.color}">${player.name}</span> rolls again — <b>Extra Roll</b>!`);
-        cardDrawTimer = setTimeout(()=>{ cardDrawTimer = null; hideCardDraw(); }, CARD_DRAW_MS);
+        cardDrawTimer = setTimeout(()=>{ cardDrawTimer = null; hideCardDraw(); }, spd(CARD_DRAW_MS));
         refreshUI();
         performRoll(pid);
         return;
       }
       if(powerOnly.type==='skipAhead'){
-        // see matching comment in the Lucky Wheel branch above
+        // see matching comment in the Lucky Wheel branch above — pause on the
+        // gift tile for a beat before the jump so the draw is clearly what moved it.
         const spaces = Math.min(39, Math.max(1, Number(CONFIG.skipAheadSpaces) || 5));
         log(`<span class="who" style="color:${player.color}">${player.name}</span> jumps ${spaces} spaces ahead!`);
-        cardDrawTimer = setTimeout(()=>{ cardDrawTimer = null; hideCardDraw(); }, CARD_DRAW_MS);
+        cardDrawTimer = setTimeout(()=>{ cardDrawTimer = null; hideCardDraw(); }, spd(CARD_DRAW_MS));
         refreshUI();
-        moveToken(pid, spaces);
+        setTimeout(()=>{ moveToken(pid, spaces); }, spd(1000));
         return;
       }
-      cardDrawTimer = setTimeout(()=>{ cardDrawTimer = null; hideCardDraw(); }, CARD_DRAW_MS);
+      cardDrawTimer = setTimeout(()=>{ cardDrawTimer = null; hideCardDraw(); }, spd(CARD_DRAW_MS));
       refreshUI();
       if(stealCardPick){ return; } // see matching comment in the Lucky Wheel branch above
       finishTurnStep(pid);
@@ -2822,7 +2851,7 @@ function resolveTile(pid, idx){
     showCardDraw({id:++cardDrawSeq, kind:'gift', glyph:'\u{1F381}', title:"HAPPY B'DAY", who:player.name, text:ev.text.charAt(0).toUpperCase()+ev.text.slice(1)+'.', amt:ev.amt});playCardPopupSound();
     // same as above: cosmetic only, no longer blocks the turn from continuing.
     if(cardDrawTimer) clearTimeout(cardDrawTimer);
-    cardDrawTimer = setTimeout(()=>{ cardDrawTimer = null; hideCardDraw(); }, CARD_DRAW_MS);
+    cardDrawTimer = setTimeout(()=>{ cardDrawTimer = null; hideCardDraw(); }, spd(CARD_DRAW_MS));
     finishTurnStep(pid);
     return;
   }
@@ -2835,7 +2864,9 @@ function resolveTile(pid, idx){
       startAuction([idx], { seller:null, startBid:10, timerSec:CONFIG.auctionTimerSec, onComplete:()=>finishTurnStep(pid) });
       return;
     }
-    const canAfford = player.balance >= price;
+    const buyPrice = propertyBuyPrice(t, pid); // Discount card halves this — see propertyBuyPrice()
+    const discounted = buyPrice !== price;
+    const canAfford = player.balance >= buyPrice;
     pendingBuy = idx;
     if(pid===youAre && !window.__netImpersonating){ // only show the buy/auction panel on the screen of the player it's actually for.
       // The __netImpersonating check matters here specifically: while the host is replaying
@@ -2847,13 +2878,13 @@ function resolveTile(pid, idx){
       // (already gated on myTurnNow) re-derives the right panel for every real viewer once
       // the broadcasted state lands on their own client.
       document.getElementById('bpName').textContent = t.name;
-      document.getElementById('bpPrice').textContent = t.price;
+      document.getElementById('bpPrice').textContent = discounted ? `$${fmt(buyPrice)} (Discount, was ${t.price})` : t.price;
       document.getElementById('buyPanel').classList.add('show');
       const yesBtn = document.getElementById('buyYesBtn');
       yesBtn.disabled = !canAfford;
       yesBtn.title = canAfford ? '' : "Not enough cash";
     }
-    log(`<span class="who" style="color:${player.color}">${player.name}</span> lands on <b>${t.name}</b> (${t.price}) — unowned${canAfford?'':' — not enough cash to buy'}.`);
+    log(`<span class="who" style="color:${player.color}">${player.name}</span> lands on <b>${t.name}</b> (${discounted?`$${fmt(buyPrice)}, Discount card`:t.price}) — unowned${canAfford?'':' — not enough cash to buy'}.`);
     refreshUI(); // recompute Loan/Auction button state now that pendingBuy is set — otherwise
                  // they're stuck showing whatever they were before this decision started
     return; // wait for buy/skip
@@ -2880,7 +2911,7 @@ function resolveTile(pid, idx){
     showCardDraw({id:++cardDrawSeq, kind:'power', glyph:'\u{1F6E1}\uFE0F', title:'SHIELD USED', who:player.name, text:`Property Shield absorbed $${fmt(rent)} in rent.`});
     playCardPopupSound();
     if(cardDrawTimer) clearTimeout(cardDrawTimer);
-    cardDrawTimer = setTimeout(()=>{ cardDrawTimer = null; hideCardDraw(); }, CARD_DRAW_MS);
+    cardDrawTimer = setTimeout(()=>{ cardDrawTimer = null; hideCardDraw(); }, spd(CARD_DRAW_MS));
     refreshUI();
     offerLandingBuyoutOrFinish(pid, idx);
     return;
@@ -2898,7 +2929,7 @@ function resolveTile(pid, idx){
     showCardDraw({id:++cardDrawSeq, kind:'power', glyph:'\u{1F91D}', title:'SHARED SHIELD USED', who:sharedShielder.name, text:`Shared Shield absorbed $${fmt(rent)} in rent for ${player.name}.`});
     playCardPopupSound();
     if(cardDrawTimer) clearTimeout(cardDrawTimer);
-    cardDrawTimer = setTimeout(()=>{ cardDrawTimer = null; hideCardDraw(); }, CARD_DRAW_MS);
+    cardDrawTimer = setTimeout(()=>{ cardDrawTimer = null; hideCardDraw(); }, spd(CARD_DRAW_MS));
     refreshUI();
     offerLandingBuyoutOrFinish(pid, idx);
     return;
@@ -3113,15 +3144,18 @@ function showTileInfo(idx){
   let actionsHtml = '';
   const myTurn = order[turnIdx]===youAre;
   if(t.owner==null){
+    const buyPrice = propertyBuyPrice(t, youAre); // Discount card halves this — see propertyBuyPrice()
+    const discounted = buyPrice !== price;
+    const buyLabel = discounted ? `Buy for $${fmt(buyPrice)} (Discount, was $${fmt(price)})` : `Buy for ${t.price}`;
     if(pendingBuy===idx && myTurn){
-      actionsHtml = `<button class="buy-btn yes" onclick="buyDecision(true);closeTileInfo();">Buy for ${t.price}</button>
+      actionsHtml = `<button class="buy-btn yes" onclick="buyDecision(true);closeTileInfo();">${buyLabel}</button>
         <button class="buy-btn no" onclick="buyDecision(false);closeTileInfo();">&#128176; Send to auction</button>`;
     } else if(!NET.online){
       // Local test only: let whichever player you're currently viewing buy this tile
       // straight from the bank, regardless of whose turn it is or where any token
       // sits — a shortcut for setting up test scenarios. Never shown in an online room.
-      const afford = me.balance >= price;
-      actionsHtml = `<button class="buy-btn yes" ${afford?'':'disabled'} onclick="buyPropertyAnywhere(${idx});closeTileInfo();">Buy for ${t.price}</button>
+      const afford = me.balance >= buyPrice;
+      actionsHtml = `<button class="buy-btn yes" ${afford?'':'disabled'} onclick="buyPropertyAnywhere(${idx});closeTileInfo();">${buyLabel}</button>
         <div class="ti-hint">&#9889; Local test: buy directly from the bank, no need to land on it.</div>`;
     } else {
       actionsHtml = `<div class="ti-hint">Land on this tile on your turn to buy it from the bank.</div>`;
@@ -3138,10 +3172,8 @@ function showTileInfo(idx){
       const isFrozen = (t.frozenTurns||0)>0;
       const buildDisabled = !myTurnNow || notEligibleSet || houses>=5 || t.mortgaged || unevenBlock || isFrozen;
       const cost = houseCost(t);
-      const buildCost = houseCostForBuild(t, youAre);
-      const discountTag = (players[youAre]&&players[youAre].highRiseHustleCards>0) ? ' <span style="color:var(--cyan);font-size:11px;">(Discount)</span>' : '';
       actionsHtml += `<button class="buy-btn no" ${(houses>0&&myTurnNow&&!isFrozen)?'':'disabled'} ${houses>0?'':'style="visibility:hidden;"'} onclick="sellHouse('${t.name}')">Sell house (+$${Math.round(cost/2/10)*10})</button>`;
-      actionsHtml += `<button class="buy-btn yes" ${buildDisabled?'disabled':''} onclick="buildHouse('${t.name}')">${houses>=4?'&#127976; Build hotel':'&#127968; Build house'} ($${buildCost})</button>${discountTag}`;
+      actionsHtml += `<button class="buy-btn yes" ${buildDisabled?'disabled':''} onclick="buildHouse('${t.name}')">${houses>=4?'&#127976; Build hotel':'&#127968; Build house'} ($${cost})</button>`;
       if(isFrozen) actionsHtml += `<div class="ti-hint">&#10052;&#65039; Frozen for ${t.frozenTurns} more turn${t.frozenTurns===1?'':'s'} — no building, selling, mortgaging, or rent.</div>`;
     }
     // --- mortgage / unmortgage (allowed any time, not just on your turn) ---
@@ -3206,9 +3238,11 @@ function syncPendingPanels(){
     const t = tiles[pendingBuy];
     const price = parseInt(t.price.replace('$',''));
     const actor = players[order[turnIdx]];
-    const canAfford = !!actor && actor.balance >= price;
+    const buyPrice = propertyBuyPrice(t, order[turnIdx]); // Discount card halves this — see propertyBuyPrice()
+    const discounted = buyPrice !== price;
+    const canAfford = !!actor && actor.balance >= buyPrice;
     document.getElementById('bpName').textContent = t.name;
-    document.getElementById('bpPrice').textContent = t.price;
+    document.getElementById('bpPrice').textContent = discounted ? `$${fmt(buyPrice)} (Discount, was ${t.price})` : t.price;
     const yesBtn = document.getElementById('buyYesBtn');
     yesBtn.disabled = !canAfford;
     yesBtn.title = canAfford ? '' : "Not enough cash";
@@ -3269,14 +3303,16 @@ function buyPropertyAnywhere(idx){
   const pid = youAre;
   const player = players[pid];
   if(!player || player.bankrupt) return false;
-  const price = parseInt(t.price.replace('$',''));
+  const price = propertyBuyPrice(t, pid); // Discount card halves this — see propertyBuyPrice()
+  const discountUsed = player.highRiseHustleCards>0;
   if(player.balance < price) return false;
   player.balance -= price;
   t.owner = pid;
+  if(discountUsed) player.highRiseHustleCards--; // Discount card burns on the very next property purchase
   markOwnership(idx, teamDisplayColor(pid)); // IN TEAMS: tile reads as the team's blended color, not just this buyer's own
   pulseTile(idx, teamDisplayColor(pid));
   playBuySound();
-  log(`<span class="who" style="color:${player.color}">${player.name}</span> buys <b>${t.name}</b> for $${price} (local test — bought from anywhere).`);
+  log(`<span class="who" style="color:${player.color}">${player.name}</span> buys <b>${t.name}</b> for $${fmt(price)}${discountUsed?' — Discount card used!':''} (local test — bought from anywhere).`);
   refreshUI();
   return true;
 }
@@ -3289,7 +3325,8 @@ function buyDecision(yes){
   const player = players[pid];
   const idx = pendingBuy;
   const t = tiles[idx];
-  const price = parseInt(t.price.replace('$',''));
+  const price = propertyBuyPrice(t, pid); // Discount card halves this — see propertyBuyPrice()
+  const discountUsed = player.highRiseHustleCards>0;
 
   if(yes && player.balance < price){
     // guard rail in case the disabled state was bypassed
@@ -3303,10 +3340,11 @@ function buyDecision(yes){
   if(yes){
     player.balance -= price;
     t.owner = pid;
+    if(discountUsed) player.highRiseHustleCards--; // Discount card burns on the very next property purchase
     markOwnership(idx, teamDisplayColor(pid)); // IN TEAMS: tile reads as the team's blended color, not just this buyer's own
     pulseTile(idx, teamDisplayColor(pid));
     playBuySound(); // plays for whoever's screen actually executes the buy (see the network-sync call site for everyone else)
-    log(`<span class="who" style="color:${player.color}">${player.name}</span> buys <b>${t.name}</b> for $${price}.`);
+    log(`<span class="who" style="color:${player.color}">${player.name}</span> buys <b>${t.name}</b> for $${fmt(price)}${discountUsed?' — Discount card used!':''}.`);
     finishTurnStep(pid);
   } else {
     log(`<span class="who" style="color:${player.color}">${player.name}</span> sends <b>${t.name}</b> to auction.`);
@@ -3389,7 +3427,7 @@ function tryAutoJailFree(pid, player){
   showCardDraw({id:++cardDrawSeq, kind:'power', glyph:'\u{1F513}', title:'GET OUT OF JAIL FREE', who:player.name, text:`${player.name} avoids jail — no bail needed.`});
   playCardPopupSound();
   if(cardDrawTimer) clearTimeout(cardDrawTimer);
-  cardDrawTimer = setTimeout(()=>{ cardDrawTimer = null; hideCardDraw(); }, CARD_DRAW_MS);
+  cardDrawTimer = setTimeout(()=>{ cardDrawTimer = null; hideCardDraw(); }, spd(CARD_DRAW_MS));
   return true;
 }
 /* kept for network/action-routing compatibility, but no longer reachable from
@@ -3502,9 +3540,10 @@ function usePooledPaydayCard(){
 }
 
 /* Discount (formerly High-Rise Hustle) is now an auto-fire card, like Bankruptcy
-   Insurance — it just sits in hand until the holder actually builds, at which
-   point houseCostForBuild()/buildHouse() apply the 50% discount and burn one
-   copy automatically. No manual "Use" button (see POWER_CARD_USE_FN/powerCardUsable). */
+   Insurance — it just sits in hand until the holder actually buys a property, at
+   which point propertyBuyPrice()/buyDecision()/buyPropertyAnywhere() apply the
+   50% discount and burn one copy automatically. No manual "Use" button (see
+   POWER_CARD_USE_FN/powerCardUsable). */
 
 /* spends a held Teleport power card — enters "pick a tile" mode; the next tile
    the player clicks (see tile click handler) becomes their new position instead
@@ -3548,7 +3587,7 @@ function resolveTeleportTo(idx){
   showCardDraw({id:++cardDrawSeq, kind:'power', glyph:'\u{1F300}', title:'TELEPORT', who:player.name, text:`Warped straight to ${t.name}.`});
   playCardPopupSound();
   if(cardDrawTimer) clearTimeout(cardDrawTimer);
-  cardDrawTimer = setTimeout(()=>{ cardDrawTimer = null; hideCardDraw(); }, CARD_DRAW_MS);
+  cardDrawTimer = setTimeout(()=>{ cardDrawTimer = null; hideCardDraw(); }, spd(CARD_DRAW_MS));
   const offset=((PLAYER_IDS.indexOf(pid)%4)-1.5)*9;
   const p = tokenAnchorPoint(idx);
   setTokenPos(pid, p.x+offset, p.y, {instant:true, pos:idx});
@@ -3577,11 +3616,11 @@ function useNudgeCard(delta){
   const t = tiles[idx];
   const dirWord = delta>0 ? 'forward' : 'backward';
   const spaces = Math.abs(delta);
-  log(`<span class="who" style="color:${player.color}">${player.name}</span> plays a <b>Nudge</b> card and moves ${spaces} space${spaces===1?'':'s'} ${dirWord} to <b>${t.name}</b>.`);
-  showCardDraw({id:++cardDrawSeq, kind:'power', glyph:'\u{1F449}', title:'NUDGE', who:player.name, text:`Moved ${spaces} space${spaces===1?'':'s'} ${dirWord} to ${t.name}.`});
+  log(`<span class="who" style="color:${player.color}">${player.name}</span> plays a <b>Short Hop</b> card and moves ${spaces} space${spaces===1?'':'s'} ${dirWord} to <b>${t.name}</b>.`);
+  showCardDraw({id:++cardDrawSeq, kind:'power', glyph:'\u{1F449}', title:'SHORT HOP', who:player.name, text:`Moved ${spaces} space${spaces===1?'':'s'} ${dirWord} to ${t.name}.`});
   playCardPopupSound();
   if(cardDrawTimer) clearTimeout(cardDrawTimer);
-  cardDrawTimer = setTimeout(()=>{ cardDrawTimer = null; hideCardDraw(); }, CARD_DRAW_MS);
+  cardDrawTimer = setTimeout(()=>{ cardDrawTimer = null; hideCardDraw(); }, spd(CARD_DRAW_MS));
   const offset=((PLAYER_IDS.indexOf(pid)%4)-1.5)*9;
   const p = tokenAnchorPoint(idx);
   setTokenPos(pid, p.x+offset, p.y, {instant:true, pos:idx});
@@ -3701,7 +3740,7 @@ function resolvePropertySwapPick(idx){
   showCardDraw({id:++cardDrawSeq, kind:'power', glyph:'\u{1F504}', title:'PROPERTY SWAP', who:player.name, text:`Traded ${mine.name} for ${t.name}.`});
   playCardPopupSound();
   if(cardDrawTimer) clearTimeout(cardDrawTimer);
-  cardDrawTimer = setTimeout(()=>{ cardDrawTimer = null; hideCardDraw(); }, CARD_DRAW_MS);
+  cardDrawTimer = setTimeout(()=>{ cardDrawTimer = null; hideCardDraw(); }, spd(CARD_DRAW_MS));
   propertySwapPick = null;
   refreshUI();
   renderManage(pid);
@@ -3812,7 +3851,7 @@ function resolveStealCardPick(targetPid, cardType){
   showCardDraw({id:++cardDrawSeq, kind:'power', glyph:'\u{1F3B4}', title:'STEAL A CARD', who:player.name, text:`Took a ${cardTitle} card from ${target.name}.`});
   playCardPopupSound();
   if(cardDrawTimer) clearTimeout(cardDrawTimer);
-  cardDrawTimer = setTimeout(()=>{ cardDrawTimer = null; hideCardDraw(); }, CARD_DRAW_MS);
+  cardDrawTimer = setTimeout(()=>{ cardDrawTimer = null; hideCardDraw(); }, spd(CARD_DRAW_MS));
   stealCardPick = null;
   refreshUI();
   finishTurnStep(pid);
@@ -3903,7 +3942,7 @@ function useFreezeCard(targetPid){
   showCardDraw({id:++cardDrawSeq, kind:'power', glyph:'\u2744\uFE0F', title:'PROPERTY FREEZE', who:player.name, text: targets.length ? `${target.name}'s ${targets.length} propert${targets.length===1?'y is':'ies are'} frozen for their next turn.` : `${target.name} owns no properties to freeze.`});
   playCardPopupSound();
   if(cardDrawTimer) clearTimeout(cardDrawTimer);
-  cardDrawTimer = setTimeout(()=>{ cardDrawTimer = null; hideCardDraw(); }, CARD_DRAW_MS);
+  cardDrawTimer = setTimeout(()=>{ cardDrawTimer = null; hideCardDraw(); }, spd(CARD_DRAW_MS));
   refreshUI();
   renderManage(pid);
 }
@@ -3961,7 +4000,7 @@ function resolveSabotageTo(idx){
   showCardDraw({id:++cardDrawSeq, kind:'power', glyph:'\u{1F5E1}\uFE0F', title:'SABOTAGE', who:player.name, text:`${targets.length} propert${targets.length===1?'y is':'ies are'} frozen for ${owner.name}'s next turn.`});
   playCardPopupSound();
   if(cardDrawTimer) clearTimeout(cardDrawTimer);
-  cardDrawTimer = setTimeout(()=>{ cardDrawTimer = null; hideCardDraw(); }, CARD_DRAW_MS);
+  cardDrawTimer = setTimeout(()=>{ cardDrawTimer = null; hideCardDraw(); }, spd(CARD_DRAW_MS));
   refreshUI();
   renderManage(pid);
 }
@@ -4007,14 +4046,14 @@ function useSwapCard(targetPid){
   let jailNote = '';
   if(targetWasJailed && !playerWasJailed) jailNote = `, springing ${target.name} from jail`;
   else if(playerWasJailed && !targetWasJailed) jailNote = `, sending ${player.name} to jail in ${target.name}'s place`;
-  log(`<span class="who" style="color:${player.color}">${player.name}</span> plays a <b>Swap</b> card on <span class="who" style="color:${target.color}">${target.name}</span> — they trade places on the board${jailNote}.`);
+  log(`<span class="who" style="color:${player.color}">${player.name}</span> plays a <b>Position Swap</b> card on <span class="who" style="color:${target.color}">${target.name}</span> — they trade places on the board${jailNote}.`);
   let jailCardText = '';
   if(targetWasJailed && !playerWasJailed) jailCardText = ` ${target.name} is sprung free from jail!`;
   else if(playerWasJailed && !targetWasJailed) jailCardText = ` ${player.name} is now the one in jail!`;
-  showCardDraw({id:++cardDrawSeq, kind:'power', glyph:'\u{1F500}', title:'SWAP', who:player.name, text:`Swapped places with ${target.name}: now on ${myTile.name}.${jailCardText}`});
+  showCardDraw({id:++cardDrawSeq, kind:'power', glyph:'\u{1F500}', title:'POSITION SWAP', who:player.name, text:`Swapped places with ${target.name}: now on ${myTile.name}.${jailCardText}`});
   playCardPopupSound();
   if(cardDrawTimer) clearTimeout(cardDrawTimer);
-  cardDrawTimer = setTimeout(()=>{ cardDrawTimer = null; hideCardDraw(); }, CARD_DRAW_MS);
+  cardDrawTimer = setTimeout(()=>{ cardDrawTimer = null; hideCardDraw(); }, spd(CARD_DRAW_MS));
   const myOffset=((PLAYER_IDS.indexOf(pid)%4)-1.5)*9;
   const theirOffset=((PLAYER_IDS.indexOf(targetPid)%4)-1.5)*9;
   const myPoint = tokenAnchorPoint(theirPos);
@@ -4053,7 +4092,7 @@ function applySkipTurns(){
       showCardDraw({id:++cardDrawSeq, kind:'power', glyph:'\u23E9', title:'FAST FORWARD', who:up.name, text:`${up.name}'s sit-out turn is cancelled.`});
       playCardPopupSound();
       if(cardDrawTimer) clearTimeout(cardDrawTimer);
-      cardDrawTimer = setTimeout(()=>{ cardDrawTimer = null; hideCardDraw(); }, CARD_DRAW_MS);
+      cardDrawTimer = setTimeout(()=>{ cardDrawTimer = null; hideCardDraw(); }, spd(CARD_DRAW_MS));
       break;
     } else if(up && up.skipNextTurn){
       up.skipNextTurn = false;
@@ -4071,7 +4110,7 @@ function applySkipTurns(){
       showCardDraw({id:++cardDrawSeq, kind:'power', glyph:'\u23E9', title:'FAST FORWARD', who:up.name, text:`${up.name} walks free from jail, no bail needed.`});
       playCardPopupSound();
       if(cardDrawTimer) clearTimeout(cardDrawTimer);
-      cardDrawTimer = setTimeout(()=>{ cardDrawTimer = null; hideCardDraw(); }, CARD_DRAW_MS);
+      cardDrawTimer = setTimeout(()=>{ cardDrawTimer = null; hideCardDraw(); }, spd(CARD_DRAW_MS));
       break;
     } else if(up && up.reconnecting){
       // their seat is being held open during the disconnect grace window (see
@@ -5544,7 +5583,8 @@ function encodeConfig(cfg){
     tre:cfg.powerCardsEnabled.tollRefund?1:0, trw:cfg.powerCardWeights.tollRefund,
     hse:cfg.powerCardsEnabled.halfShield?1:0, hsw:cfg.powerCardWeights.halfShield,
     the:cfg.powerCardsEnabled.theft?1:0, thw:cfg.powerCardWeights.theft,
-    sbe:cfg.sideBetsEnabled?1:0
+    sbe:cfg.sideBetsEnabled?1:0,
+    sp2:cfg.speedX2Enabled?1:0
   };
   try{ return 'WE-' + btoa(JSON.stringify(payload)).replace(/=+$/,''); }
   catch(e){ return ''; }
@@ -5627,6 +5667,7 @@ function decodeConfig(code){
         theft: Number.isFinite(Number(payload.thw)) ? Math.max(0, Number(payload.thw)) : 25
       },
       sideBetsEnabled: payload.sbe===undefined ? false : !!payload.sbe,
+      speedX2Enabled: !!payload.sp2,
       skipAheadSpaces: Math.min(39, Math.max(1, Number(payload.sas)||5))
     };
   }catch(e){ return null; }
@@ -5749,6 +5790,8 @@ function openConfigMenu(){
   document.getElementById('cfgPowerTheftWeight').value = CONFIG.powerCardWeights.theft;
 
   document.getElementById('cfgSideBetsEnabled').checked = CONFIG.sideBetsEnabled;
+
+  document.getElementById('cfgSpeedX2Enabled').checked = CONFIG.speedX2Enabled;
 
   switchConfigTab('general');
   document.getElementById('configOverlay').classList.add('show');
@@ -5897,6 +5940,9 @@ function saveConfigMenu(){
   CONFIG.skipAheadSpaces = Math.min(39, Math.max(1, parseInt(document.getElementById('cfgSkipAheadSpaces').value) || 5));
 
   CONFIG.sideBetsEnabled = document.getElementById('cfgSideBetsEnabled').checked;
+
+  CONFIG.speedX2Enabled = document.getElementById('cfgSpeedX2Enabled').checked;
+  applySpeedUI();
 
   updateSpecialTileVisuals();
   // if a share code is already on screen, keep it in sync with the edited rules

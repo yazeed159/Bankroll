@@ -718,7 +718,7 @@ function drawDice(a,b){
   requestAnimationFrame(()=>requestAnimationFrame(()=>{
     [jump1,jump2,shadow1,shadow2].forEach(el=>{ if(el)el.classList.add('rolling'); });
   }));
-  setTimeout(()=>{ [jump1,jump2,shadow1,shadow2].forEach(el=>{ if(el)el.classList.remove('rolling'); }); },1500);
+  setTimeout(()=>{ [jump1,jump2,shadow1,shadow2].forEach(el=>{ if(el)el.classList.remove('rolling'); }); },spd(1500));
 }
 window.lastRollDice = [4,3];
 buildDieFaces(document.getElementById('die1cube'));
@@ -1054,7 +1054,7 @@ function glideTokenRemote(pid, toPos){
     playFootstepSound();
     if(pos===0) playRentSound(); // passing/landing on GO — mirrors the money sound the active roller hears locally
     remaining--;
-    remoteAnimTimers[pid] = setTimeout(stepOnce, 280);
+    remoteAnimTimers[pid] = setTimeout(stepOnce, spd(280));
   };
   stepOnce();
 }

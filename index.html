@@ -171,6 +171,12 @@
       </div>
       <div class="cfg-hint">Shown as a shrinking ring around the active player's avatar. If time runs out, their turn is ended automatically (or the dice are rolled for them if they haven't rolled yet). The clock pauses whenever a player is stuck negative and can't legally end their turn — it picks back up once they're square again.</div>
 
+      <div class="cfg-section-title">&#9193; Game speed</div>
+      <div class="cfg-field cfg-checkbox">
+        <label><input type="checkbox" id="cfgSpeedX2Enabled"> Start the game at 2x speed</label>
+      </div>
+      <div class="cfg-hint">Halves the dice, token-movement, and card-reveal animation delays. Can also be flipped mid-game from the board's topbar Speed button — but only the host can toggle it there once you're playing.</div>
+
       <div class="cfg-section-title pink">&#127922; Side bets</div>
       <div class="cfg-field cfg-checkbox">
         <label><input type="checkbox" id="cfgSideBetsEnabled"> Let players wager cash against each other's dice rolls</label>
@@ -297,6 +303,7 @@
               <input type="number" id="cfgPowerTeleportWeight" min="0" max="100" step="5">
             </div>
           </div>
+          <div class="cfg-power-desc">Play it on your turn — warp your token to any tile on the board.</div>
         </div>
         <div class="cfg-power-card">
           <div style="display:flex;align-items:flex-end;gap:10px;">
@@ -329,13 +336,14 @@
         <div class="cfg-power-card">
           <div style="display:flex;align-items:flex-end;gap:10px;">
             <div class="cfg-field cfg-checkbox" style="flex:1;margin-bottom:0;">
-              <label><input type="checkbox" id="cfgPowerSwapEnabled"> &#128256; Swap</label>
+              <label><input type="checkbox" id="cfgPowerSwapEnabled"> &#128256; Position Swap</label>
             </div>
             <div class="cfg-field" style="width:88px;margin-bottom:0;">
               <label>Weight</label>
               <input type="number" id="cfgPowerSwapWeight" min="0" max="100" step="5">
             </div>
           </div>
+          <div class="cfg-power-desc">Play it on your turn — trade board positions with another player, wherever they are.</div>
         </div>
         <div class="cfg-power-card">
           <div style="display:flex;align-items:flex-end;gap:10px;">
@@ -467,7 +475,7 @@
               <input type="number" id="cfgPowerHighRiseHustleWeight" min="0" max="100" step="5">
             </div>
           </div>
-          <div class="cfg-power-desc">Fires automatically on your next house/hotel purchase (any level) — 50% off. Can't be played by hand, but can be traded.</div>
+          <div class="cfg-power-desc">Fires automatically on your next unowned property purchase — 50% off. Can't be played by hand, but can be traded.</div>
         </div>
         <div class="cfg-power-card">
           <div class="cfg-team-only-row" id="cfgRowSabotage" style="display:flex;align-items:flex-end;gap:10px;">
@@ -484,14 +492,14 @@
         <div class="cfg-power-card">
           <div style="display:flex;align-items:flex-end;gap:10px;">
             <div class="cfg-field cfg-checkbox" style="flex:1;margin-bottom:0;">
-              <label><input type="checkbox" id="cfgPowerNudgeEnabled"> &#128073; Nudge</label>
+              <label><input type="checkbox" id="cfgPowerNudgeEnabled"> &#128073; Short Hop</label>
             </div>
             <div class="cfg-field" style="width:88px;margin-bottom:0;">
               <label>Weight</label>
               <input type="number" id="cfgPowerNudgeWeight" min="0" max="100" step="5">
             </div>
           </div>
-          <div class="cfg-power-desc">Played on your turn — nudges your token 1–3 spaces forward or back, then resolves wherever you land.</div>
+          <div class="cfg-power-desc">Played on your turn — hops your token 1–3 spaces forward or back, then resolves wherever you land.</div>
         </div>
         <div class="cfg-power-card">
           <div style="display:flex;align-items:flex-end;gap:10px;">
@@ -566,6 +574,7 @@
           <span class="sound-volume-label" id="soundVolumeLabel">100%</span>
         </div>
         <button class="reset-btn" id="camZoomBtn" onclick="toggleCameraPulse()" title="Nudge the camera toward the active player at the start of their turn">&#128269; <span id="camZoomBtnLabel">Turn zoom: off</span></button>
+        <button class="reset-btn" id="speedBtn" onclick="toggleGameSpeed()" title="Toggle 2x game speed">&#9193; <span id="speedBtnLabel">Speed: 1x</span></button>
         <button class="reset-btn" onclick="resetView()">&#8635; Reset camera</button>
         <button class="reset-btn" onclick="cycleGameTheme()" title="Switch board theme">&#127912; <span id="topbarThemeLabel">Theme: Modern</span></button>
         <button class="reset-btn" id="spectatorsBtn" onclick="toggleSpectatorsPanel()" title="People who joined mid-game and are waiting to play" style="display:none;">&#128065; <span id="spectatorsBtnLabel">Spectators (0)</span></button>

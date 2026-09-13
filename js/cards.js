@@ -27,7 +27,7 @@ const POWER_CARDS = [
   {type:'teleport',     glyph:'\u{1F300}', title:'TELEPORT', text:'Play it on your turn to warp your token to any tile.'},
   {type:'shield',       glyph:'\u{1F6E1}\uFE0F', title:'PROPERTY SHIELD', text:'Blocks the next rent charged to you.'},
   {type:'propertyFreeze', glyph:'\u2744\uFE0F', title:'PROPERTY FREEZE', text:"Play it on your turn to freeze ALL of one opponent's properties — no building, selling, mortgaging, or rent from any of them for their next turn."},
-  {type:'swap',         glyph:'\u{1F500}', title:'SWAP', text:'Play it on your turn to swap board positions with another player.'},
+  {type:'swap',         glyph:'\u{1F500}', title:'POSITION SWAP', text:'Play it on your turn to swap board positions with another player.'},
   {type:'skipAhead', glyph:'\u23ED\uFE0F', title:'SKIP AHEAD', text:'Instantly jumps your token forward a fixed number of spaces the moment you draw it, with the same GO salary as a normal move if you pass or land on it.'},
   {type:'propertySwap', glyph:'\u{1F504}', title:'PROPERTY SWAP', text:"Play it on your turn to trade one of your unbuilt properties for an unbuilt property of your choice from another player."},
   {type:'bankruptcyInsurance', glyph:'\u{1F4B8}', title:'BANKRUPTCY INSURANCE', text:"The instant you go negative, wipes your debt and brings you back to $0."},
@@ -39,14 +39,14 @@ const POWER_CARDS = [
   {type:'sharedShield', glyph:'\u{1F91D}', title:'SHARED SHIELD', text:"Blocks the next rent charged to ANY teammate, not just you. Team mode only.", teamOnly:true},
   {type:'rally', glyph:'\u{1F4E3}', title:'RALLY', text:"Instantly gives every teammate (including you) one extra roll on their next turn. Team mode only.", teamOnly:true},
   {type:'pooledPayday', glyph:'\u{1F4B8}', title:'POOLED PAYDAY', text:"Doubles the whole team's rent income until your next turn comes back around. Team mode only.", teamOnly:true},
-  {type:'highRiseHustle', glyph:'\u{1F3D9}\uFE0F', title:'DISCOUNT', text:"Your next house or hotel purchase (any level) is 50% off — applies automatically the moment you build, no need to play it by hand."},
+  {type:'highRiseHustle', glyph:'\u{1F3D9}\uFE0F', title:'DISCOUNT', text:"Your next property purchase is 50% off — applies automatically the moment you buy, no need to play it by hand."},
   {type:'sabotage', glyph:'\u{1F5E1}\uFE0F', title:'SABOTAGE', text:"Play it on your turn to freeze an entire opposing team's property group at once — no building, selling, mortgaging, or rent from any tile in it, for their next turn. Team mode only.", teamOnly:true},
   // ---- weaker "filler" cards: deliberately low-impact so the big swings above
   // (Sabotage, Bankruptcy Insurance, Steal a Card, Property Freeze, ...) feel
   // like the jackpot they're supposed to be. Kept common via a higher default
   // draw weight in CONFIG.powerCardWeights rather than by adding any new
   // mechanics — see the comment there.
-  {type:'nudge', glyph:'\u{1F449}', title:'NUDGE', text:'Play it on your turn to nudge your token 1–3 spaces forward or backward, then resolve wherever you land.'},
+  {type:'nudge', glyph:'\u{1F449}', title:'SHORT HOP', text:'Play it on your turn to hop your token 1–3 spaces forward or backward, then resolve wherever you land.'},
   {type:'tollRefund', glyph:'\u{1F9FE}', title:'TOLL REFUND', text:'Instantly refunds the last rent you paid, if any.'},
   {type:'halfShield', glyph:'\u{1F530}', title:'HALF SHIELD', text:'Blocks half (rounded down) of the next rent charged to you.'},
   {type:'theft', glyph:'\u{1FA99}', title:'THEFT', text:'Instantly steals 10% of the richest other player\u2019s cash.'},
@@ -176,7 +176,7 @@ function tryAutoFireLoanForgiveness(player){
   showCardDraw({id:++cardDrawSeq, kind:'power', glyph:'\u{1F3E6}', title:'LOAN FORGIVENESS USED', who:player.name, text:`Loan Forgiveness cancelled $${fmt(owed)} of bank loan.`});
   playCardPopupSound();
   if(cardDrawTimer) clearTimeout(cardDrawTimer);
-  cardDrawTimer = setTimeout(()=>{ cardDrawTimer = null; hideCardDraw(); }, CARD_DRAW_MS);
+  cardDrawTimer = setTimeout(()=>{ cardDrawTimer = null; hideCardDraw(); }, spd(CARD_DRAW_MS));
   refreshUI();
 }
 /* Property Swap is only "fair" when both sides of the trade are the same kind of
@@ -304,15 +304,15 @@ function renderPowerBadges(pid, p){
     p.teleportCards>0 ? {glyph:'\u{1F300}', n:p.teleportCards, title:'Teleport'} : null,
     p.shieldCharges>0 ? {glyph:'\u{1F6E1}\uFE0F', n:p.shieldCharges, title:'Property Shield'} : null,
     p.propertyFreezeCards>0 ? {glyph:'\u2744\uFE0F', n:p.propertyFreezeCards, title:'Property Freeze'} : null,
-    p.swapCards>0 ? {glyph:'\u{1F500}', n:p.swapCards, title:'Swap'} : null,
+    p.swapCards>0 ? {glyph:'\u{1F500}', n:p.swapCards, title:'Position Swap'} : null,
     p.bankruptcyInsuranceCharges>0 ? {glyph:'\u{1F4B8}', n:p.bankruptcyInsuranceCharges, title:'Bankruptcy Insurance'} : null,
     p.fastForwardCards>0 ? {glyph:'\u23E9', n:p.fastForwardCards, title:'Fast Forward'} : null,
     p.sharedShieldCharges>0 ? {glyph:'\u{1F91D}', n:p.sharedShieldCharges, title:'Shared Shield (team mode)'} : null,
     p.extraRollCredits>0 ? {glyph:'\u{1F4E3}', n:p.extraRollCredits, title:'Rally bonus roll(s) banked for their next turn'} : null,
     p.pooledPaydayCards>0 ? {glyph:'\u{1F4B8}', n:p.pooledPaydayCards, title:'Pooled Payday (team mode)'} : null,
-    p.highRiseHustleCards>0 ? {glyph:'\u{1F3D9}\uFE0F', n:p.highRiseHustleCards, title:'Discount — next house/hotel purchase 50% off'} : null,
+    p.highRiseHustleCards>0 ? {glyph:'\u{1F3D9}\uFE0F', n:p.highRiseHustleCards, title:'Discount — next property purchase 50% off'} : null,
     p.sabotageCards>0 ? {glyph:'\u{1F5E1}\uFE0F', n:p.sabotageCards, title:'Sabotage (team mode)'} : null,
-    p.nudgeCards>0 ? {glyph:'\u{1F449}', n:p.nudgeCards, title:'Nudge'} : null,
+    p.nudgeCards>0 ? {glyph:'\u{1F449}', n:p.nudgeCards, title:'Short Hop'} : null,
     p.halfShieldCharges>0 ? {glyph:'\u{1F530}', n:p.halfShieldCharges, title:'Half Shield'} : null,
     p.doubleSalaryCards>0 ? {glyph:'\u{1F4B5}', n:p.doubleSalaryCards, title:'Double Salary — fires on their next GO payday'} : null,
     p.loanForgivenessCards>0 ? {glyph:'\u{1F3E6}', n:p.loanForgivenessCards, title:'Loan Forgiveness — fires the moment they owe a bank loan'} : null,
@@ -429,6 +429,39 @@ function refreshPowerCardsIfOpen(){
   else renderPowerCardsHub();
 }
 const POWER_CARD_USE_FN = {rentDoubler:'useRentDoublerCard', teleport:'useTeleportCard', shield:'useShieldCard', propertyFreeze:'useFreezeCard', propertySwap:'usePropertySwapCard', sharedShield:'useSharedShieldCard', pooledPayday:'usePooledPaydayCard', sabotage:'useSabotageCard', halfShield:'useHalfShieldCard'};
+/* Local test only: draw any power card type on demand, for whichever player
+   you're currently viewing — no need to land on a Lucky Wheel/Happy Birthday
+   tile to test it. Mirrors the same "bypass the normal flow" philosophy as
+   buyPropertyAnywhere() in game.js. Grants the card the same way a real draw
+   would (via grantPowerCard(), so instant-resolving types like Toll Refund/
+   Theft/Rally/Steal a Card fire exactly as they normally do) and replays the
+   same card-draw popup. Skip Ahead still moves the token after a beat, same
+   as the real draw. Extra Roll only actually re-rolls if it's this player's
+   turn and the board isn't mid-animation — otherwise it's just granted/logged
+   so it doesn't scramble turn state for a player who isn't up right now. */
+function debugDrawPowerCard(type){
+  if(NET.online) return;
+  const def = POWER_CARDS.find(c=>c.type===type);
+  if(!def) return;
+  const pid = youAre;
+  const player = players[pid];
+  if(!player || player.bankrupt) return;
+  grantPowerCard(player, def);
+  log(`<span class="who" style="color:${player.color}">${player.name}</span> draws a <b>${def.title}</b> power card (local test — drawn on demand).`);
+  showCardDraw({id:++cardDrawSeq, kind:'power', glyph:def.glyph, title:def.title, who:player.name, text:def.text});
+  playCardPopupSound();
+  if(cardDrawTimer) clearTimeout(cardDrawTimer);
+  cardDrawTimer = setTimeout(()=>{ cardDrawTimer = null; hideCardDraw(); }, spd(CARD_DRAW_MS));
+  if(def.type==='skipAhead'){
+    const spaces = Math.min(39, Math.max(1, Number(CONFIG.skipAheadSpaces) || 5));
+    setTimeout(()=>{ moveToken(pid, spaces); }, spd(1000));
+  } else if(def.type==='extraRoll' && order[turnIdx]===pid && !busy){
+    performRoll(pid);
+  }
+  refreshUI();
+  refreshPowerCardsIfOpen();
+}
+window.debugDrawPowerCard = debugDrawPowerCard;
 function renderPowerCardsHub(){
   const body = document.getElementById('powerCardsBody');
   if(!body) return;
@@ -446,11 +479,19 @@ function renderPowerCardsHub(){
   const hintHTML = powerCardsShowAll
     ? `<div class="pc-hint">Every card this game's settings allow to be drawn — owned cards below show their count, the rest are shown grayed out so you know what to look out for. ${toggleBtnHTML}</div>`
     : `<div class="pc-hint">Cards you're holding can be used, or relayed straight to a teammate (goes through instantly, no approval needed). Auctioning a card is done from the Auction button instead, alongside your properties. ${toggleBtnHTML}</div>`;
+  // Local test only: a debug picker that draws any card type on demand for the
+  // player you're currently viewing, wherever their token actually is.
+  const debugDrawHTML = (!NET.online && player) ? `<div class="pc-actions" style="margin-bottom:12px;padding:10px;border:1px dashed var(--cyan);border-radius:8px;">
+      <div class="pc-hint" style="margin:0 0 6px;">&#9889; Local test: draw any card for ${escapeHtml(player.name)}, no need to land on a tile.</div>
+      <select class="pc-select" id="pcDebugDrawType">${POWER_CARDS.map(def=>`<option value="${def.type}">${def.glyph} ${def.title}</option>`).join('')}</select>
+      <button class="buy-btn yes" onclick="debugDrawPowerCard(document.getElementById('pcDebugDrawType').value);">Draw</button>
+    </div>`
+    : '';
   if(!listCards.length){
-    body.innerHTML = hintHTML + `<div class="pc-empty-note">${powerCardsShowAll ? "No cards are enabled for this game." : "You're not holding any cards right now."}</div>`;
+    body.innerHTML = debugDrawHTML + hintHTML + `<div class="pc-empty-note">${powerCardsShowAll ? "No cards are enabled for this game." : "You're not holding any cards right now."}</div>`;
     return;
   }
-  body.innerHTML = hintHTML +
+  body.innerHTML = debugDrawHTML + hintHTML +
   listCards.map(def=>{
     const count = player ? (player[CARD_FIELD[def.type]]||0) : 0;
     const owned = count>0;

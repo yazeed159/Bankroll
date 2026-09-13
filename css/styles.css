@@ -3437,3 +3437,32 @@ body.spectator-mode #powerCardsBtn{display:none !important;}
   .landing-panel{padding:24px 18px 20px;border-radius:22px;}
   .lobby-player-row{padding:12px 38px 12px 13px;}
 }
+
+/* Generic disabled look for topbar controls that are host-only mid-game (currently
+   just the Speed button — see toggleGameSpeed() in network.js) — mirrors
+   .lobby-mode-tab:disabled below, kept theme-agnostic since .reset-btn already is. */
+.reset-btn:disabled{cursor:not-allowed;opacity:.55;}
+
+/* ---- 2x game speed (host-toggleable, see toggleGameSpeed()/spd() in JS) ----
+   spd() itself halves the JS-side pacing delays (dice wait, token step interval,
+   card-popup hold time); this block halves the matching CSS-driven durations —
+   the dice cube's tumble/spin/hop and the token's per-tile glide — that JS can't
+   reach directly. One extra class (body.speed-x2) on every selector keeps these
+   above the per-theme 1x rules regardless of where those happen to sit in the
+   file, so this block is safe to append anywhere and never needs to move if the
+   theme rules above it are edited later. */
+body.speed-x2 [data-theme="skyline"] .gb-die-shadow.rolling,
+body.speed-x2 [data-theme="classic"] .gb-die-shadow.rolling,
+body.speed-x2 [data-theme="hearthside"] .gb-die-shadow.rolling{animation-duration:.75s;}
+body.speed-x2 [data-theme="skyline"] .gb-die-jump.rolling,
+body.speed-x2 [data-theme="classic"] .gb-die-jump.rolling,
+body.speed-x2 [data-theme="hearthside"] .gb-die-jump.rolling{animation-duration:.75s;}
+body.speed-x2 [data-theme="skyline"] .die.rolling,
+body.speed-x2 [data-theme="classic"] .die.rolling,
+body.speed-x2 [data-theme="hearthside"] .die.rolling{animation-duration:.25s;}
+body.speed-x2 [data-theme="skyline"] .gb-die-cube,
+body.speed-x2 [data-theme="classic"] .gb-die-cube,
+body.speed-x2 [data-theme="hearthside"] .gb-die-cube{transition-duration:.75s;}
+body.speed-x2 [data-theme="skyline"] .token-wrap,
+body.speed-x2 [data-theme="classic"] .token-wrap,
+body.speed-x2 [data-theme="hearthside"] .token-wrap{transition-duration:.19s;}

@@ -326,6 +326,23 @@ function setLobbyTeamsMode(on){
   if(NET.online) sendState();
 }
 window.setLobbyTeamsMode = setLobbyTeamsMode;
+/* host-only, same shape as setLobbyTeamsMode above — flips CONFIG.speedX2Enabled
+   (which drives spd() and the "2x game speed" CSS block, both in the other
+   files) and pushes it out immediately instead of waiting for the next ~300ms
+   sync tick. Callable both from the pre-game Rules & setup menu (where it's
+   just a local toggle, since nothing's networked yet) and from the topbar
+   Speed button once the game is live — unlike setLobbyTeamsMode this doesn't
+   also require NET.started to be false, since triggering it mid-game is the
+   whole point. A guest's click is a no-op: the button is already disabled for
+   them (see applySpeedUI() in game.js), and this bails out on its own too in
+   case it's ever invoked another way. */
+function toggleGameSpeed(){
+  if(NET.online && !NET.host) return;
+  CONFIG.speedX2Enabled = !CONFIG.speedX2Enabled;
+  applySpeedUI();
+  if(NET.online) sendState();
+}
+window.toggleGameSpeed = toggleGameSpeed;
 /* self-serve team join/leave — any player (host or guest) may call this on
    their OWN seat only; unlike setPlayerTeam (host-only, can target anyone)
    this always resolves against youAre, so it's safe to register in ACTIONS
