@@ -26,29 +26,40 @@ const POWER_CARDS = [
   {type:'jailFree',     glyph:'\u{1F513}', title:'GET OUT OF JAIL FREE', text:'Fires automatically the moment you\u2019d be sent to jail — walks you right past it, no bail needed.'},
   {type:'teleport',     glyph:'\u{1F300}', title:'TELEPORT', text:'Play it on your turn to warp your token to any tile.'},
   {type:'shield',       glyph:'\u{1F6E1}\uFE0F', title:'PROPERTY SHIELD', text:'Blocks the next rent charged to you.'},
-  {type:'propertyFreeze', glyph:'\u2744\uFE0F', title:'PROPERTY FREEZE', text:"Play it on your turn to freeze ALL of one opponent's properties — no building, selling, mortgaging, or rent from any of them for their next 2 turns."},
+  {type:'propertyFreeze', glyph:'\u2744\uFE0F', title:'PROPERTY FREEZE', text:"Play it on your turn to freeze ALL of one opponent's properties — no building, selling, mortgaging, or rent from any of them for their next turn."},
   {type:'swap',         glyph:'\u{1F500}', title:'SWAP', text:'Play it on your turn to swap board positions with another player.'},
   {type:'skipAhead', glyph:'\u23ED\uFE0F', title:'SKIP AHEAD', text:'Instantly jumps your token forward a fixed number of spaces the moment you draw it, with the same GO salary as a normal move if you pass or land on it.'},
   {type:'propertySwap', glyph:'\u{1F504}', title:'PROPERTY SWAP', text:"Play it on your turn to trade one of your unbuilt properties for an unbuilt property of your choice from another player."},
   {type:'bankruptcyInsurance', glyph:'\u{1F4B8}', title:'BANKRUPTCY INSURANCE', text:"The instant you go negative, wipes your debt and brings you back to $0."},
   {type:'doubleSalary', glyph:'\u{1F4B5}', title:'DOUBLE SALARY', text:'Doubles your very next GO payday.'},
-  {type:'loanForgiveness', glyph:'\u{1F3E6}', title:'LOAN FORGIVENESS', text:'Instantly wipes out any bank loan you owe.'},
+  {type:'loanForgiveness', glyph:'\u{1F3E6}', title:'LOAN FORGIVENESS', text:'Sits in your hand until you have an active bank loan, then instantly wipes it out — you don\u2019t choose when.'},
   {type:'extraRoll', glyph:'\u{1F501}', title:'EXTRA ROLL', text:'Instantly rolls the dice again for you.'},
   {type:'fastForward', glyph:'\u23E9', title:'FAST FORWARD', text:"Instantly cancels your next Bailout skip, or breaks you out of jail completely."},
   {type:'stealCard', glyph:'\u{1F3B4}', title:'STEAL A CARD', text:"Instantly steals a held power card from another player of your choice."},
   {type:'sharedShield', glyph:'\u{1F91D}', title:'SHARED SHIELD', text:"Blocks the next rent charged to ANY teammate, not just you. Team mode only.", teamOnly:true},
   {type:'rally', glyph:'\u{1F4E3}', title:'RALLY', text:"Instantly gives every teammate (including you) one extra roll on their next turn. Team mode only.", teamOnly:true},
   {type:'pooledPayday', glyph:'\u{1F4B8}', title:'POOLED PAYDAY', text:"Doubles the whole team's rent income until your next turn comes back around. Team mode only.", teamOnly:true},
-  {type:'highRiseHustle', glyph:'\u{1F3D9}\uFE0F', title:'HIGH-RISE HUSTLE', text:"Build fully upgraded (level-3 \u201cskyscraper\u201d) properties for half the usual construction cost, but only for your next two purchases. Team mode only.", teamOnly:true},
+  {type:'highRiseHustle', glyph:'\u{1F3D9}\uFE0F', title:'DISCOUNT', text:"Your next house or hotel purchase (any level) is 50% off — applies automatically the moment you build, no need to play it by hand."},
   {type:'sabotage', glyph:'\u{1F5E1}\uFE0F', title:'SABOTAGE', text:"Play it on your turn to freeze an entire opposing team's property group at once — no building, selling, mortgaging, or rent from any tile in it, for their next turn. Team mode only.", teamOnly:true},
+  // ---- weaker "filler" cards: deliberately low-impact so the big swings above
+  // (Sabotage, Bankruptcy Insurance, Steal a Card, Property Freeze, ...) feel
+  // like the jackpot they're supposed to be. Kept common via a higher default
+  // draw weight in CONFIG.powerCardWeights rather than by adding any new
+  // mechanics — see the comment there.
+  {type:'nudge', glyph:'\u{1F449}', title:'NUDGE', text:'Play it on your turn to nudge your token 1–3 spaces forward or backward, then resolve wherever you land.'},
+  {type:'tollRefund', glyph:'\u{1F9FE}', title:'TOLL REFUND', text:'Instantly refunds the last rent you paid, if any.'},
+  {type:'halfShield', glyph:'\u{1F530}', title:'HALF SHIELD', text:'Blocks half (rounded down) of the next rent charged to you.'},
+  {type:'theft', glyph:'\u{1FA99}', title:'THEFT', text:'Instantly steals 10% of the richest other player\u2019s cash.'},
 ];
 /* maps each POWER_CARDS type to the player-object field that holds its count —
    shared by grantPowerCard() below, the power-cards hub, card trading, and
    card auctions, so there's exactly one place that knows the field names.
-   Instant-fire cards (doubleSalary, loanForgiveness, extraRoll, skipAhead,
-   stealCard, rally) are intentionally left out — they never sit in a player's
-   hand, so they're never "owned" for hub/trade/auction purposes. */
-const CARD_FIELD = {rentDoubler:'rentDoublerCharges', jailFree:'jailFreeCards', teleport:'teleportCards', shield:'shieldCharges', propertyFreeze:'propertyFreezeCards', swap:'swapCards', propertySwap:'propertySwapCards', bankruptcyInsurance:'bankruptcyInsuranceCharges', fastForward:'fastForwardCards', sharedShield:'sharedShieldCharges', pooledPayday:'pooledPaydayCards', highRiseHustle:'highRiseHustleCards', sabotage:'sabotageCards'};
+   Instant-fire cards (extraRoll, skipAhead, stealCard, rally) are intentionally
+   left out — they never sit in a player's hand, so they're never "owned" for
+   hub/trade/auction purposes. doubleSalary and loanForgiveness used to be instant
+   too, but now sit in hand (like Bankruptcy Insurance) until their trigger
+   condition happens, so they can be traded like every other held card. */
+const CARD_FIELD = {rentDoubler:'rentDoublerCharges', jailFree:'jailFreeCards', teleport:'teleportCards', shield:'shieldCharges', propertyFreeze:'propertyFreezeCards', swap:'swapCards', propertySwap:'propertySwapCards', bankruptcyInsurance:'bankruptcyInsuranceCharges', fastForward:'fastForwardCards', sharedShield:'sharedShieldCharges', pooledPayday:'pooledPaydayCards', highRiseHustle:'highRiseHustleCards', sabotage:'sabotageCards', nudge:'nudgeCards', halfShield:'halfShieldCharges', doubleSalary:'doubleSalaryCards', loanForgiveness:'loanForgivenessCards'};
 function grantPowerCard(player, card){
   if(card.type==='rentDoubler') player.rentDoublerCharges = (player.rentDoublerCharges||0) + 1;
   else if(card.type==='jailFree') player.jailFreeCards = (player.jailFreeCards||0) + 1;
@@ -62,7 +73,7 @@ function grantPowerCard(player, card){
     // card.type==='skipAhead' and jumps the token forward itself, right away.
   }
   else if(card.type==='bankruptcyInsurance') player.bankruptcyInsuranceCharges = (player.bankruptcyInsuranceCharges||0) + 1;
-  else if(card.type==='doubleSalary') player.doubleSalaryArmed = true; // instant, self-arming — nothing to hold or play by hand
+  else if(card.type==='doubleSalary') player.doubleSalaryCards = (player.doubleSalaryCards||0) + 1; // sits in hand — auto-consumed the next time this player passes/lands on GO (see moveToken()), never played by hand, but tradeable like any other held card
   else if(card.type==='fastForward') player.fastForwardCards = (player.fastForwardCards||0) + 1;
   else if(card.type==='sharedShield') player.sharedShieldCharges = (player.sharedShieldCharges||0) + 1;
   else if(card.type==='rally'){
@@ -86,15 +97,13 @@ function grantPowerCard(player, card){
   // charge on the player object at all. The draw site (resolveTile's wheel/gift
   // branches) sees card.type==='extraRoll' and triggers the reroll itself.
   else if(card.type==='loanForgiveness'){
-    // instant, like Double Salary — resolves right here instead of sitting in hand
-    const owed = player.loan||0;
-    if(owed>0){
-      player.loan = 0;
-      player.loanTermTurns = 0;
-      log(`<span class="who" style="color:${player.color}">${player.name}</span>'s <b>Loan Forgiveness</b> wipes out the $${fmt(owed)} still owed on their bank loan!`);
-    } else {
-      log(`<span class="who" style="color:${player.color}">${player.name}</span> draws <b>Loan Forgiveness</b> with no bank loan on the books — wasted.`);
-    }
+    // sits in hand, tradeable, like Bankruptcy Insurance — fires the instant the holder
+    // has an active bank loan (right now if they already owe one, otherwise the next
+    // time they borrow — see tryAutoFireLoanForgiveness(), called from here, from
+    // borrowLoan(), and from finalizeAcceptedTrade() so a traded-in card that lands on
+    // an already-indebted player activates immediately too).
+    player.loanForgivenessCards = (player.loanForgivenessCards||0) + 1;
+    tryAutoFireLoanForgiveness(player);
   }
   else if(card.type==='propertySwap') player.propertySwapCards = (player.propertySwapCards||0) + 1;
   else if(card.type==='stealCard'){
@@ -112,6 +121,63 @@ function grantPowerCard(player, card){
   else if(card.type==='pooledPayday') player.pooledPaydayCards = (player.pooledPaydayCards||0) + 1;
   else if(card.type==='highRiseHustle') player.highRiseHustleCards = (player.highRiseHustleCards||0) + 1;
   else if(card.type==='sabotage') player.sabotageCards = (player.sabotageCards||0) + 1;
+  else if(card.type==='nudge') player.nudgeCards = (player.nudgeCards||0) + 1;
+  else if(card.type==='halfShield') player.halfShieldCharges = (player.halfShieldCharges||0) + 1;
+  else if(card.type==='tollRefund'){
+    // instant, like Loan Forgiveness — resolves right here instead of sitting in hand.
+    // player.lastRentPaid is stamped every time this player actually pays rent
+    // (see the rent-resolution block in resolveTile) and cleared right back to 0
+    // the moment it's refunded, so two Toll Refund draws in a row without paying
+    // any rent in between only ever pay out once.
+    const owed = player.lastRentPaid||0;
+    if(owed>0){
+      player.balance += owed;
+      player.lastRentPaid = 0;
+      log(`<span class="who" style="color:${player.color}">${player.name}</span>'s <b>Toll Refund</b> gives back the $${fmt(owed)} rent they last paid!`);
+    } else {
+      log(`<span class="who" style="color:${player.color}">${player.name}</span> draws <b>Toll Refund</b> with no rent paid recently — wasted.`);
+    }
+  }
+  else if(card.type==='theft'){
+    // instant — takes 10% (rounded down) of the richest OTHER active,
+    // non-bankrupt, non-teammate player's cash. Wasted if there's nobody
+    // eligible, or the richest eligible player is flat broke.
+    const targets = PLAYER_IDS.filter(id=>id!==player.id && players[id] && players[id].active && !players[id].bankrupt && !sameTeam(player.id,id));
+    const richestId = targets.reduce((best,id)=> (!best || players[id].balance>players[best].balance) ? id : best, null);
+    if(richestId){
+      const victim = players[richestId];
+      const amt = Math.max(0, Math.floor(victim.balance*0.1));
+      if(amt>0){
+        victim.balance -= amt;
+        player.balance += amt;
+        log(`<span class="who" style="color:${player.color}">${player.name}</span>'s <b>Theft</b> swipes $${fmt(amt)} (10%) from <span class="who" style="color:${victim.color}">${victim.name}</span>, the richest player!`);
+      } else {
+        log(`<span class="who" style="color:${player.color}">${player.name}</span> draws <b>Theft</b> — the richest player has nothing worth taking — wasted.`);
+      }
+    } else {
+      log(`<span class="who" style="color:${player.color}">${player.name}</span> draws <b>Theft</b> with no one to steal from — wasted.`);
+    }
+  }
+}
+/* Fires a held Loan Forgiveness the instant its holder actually has an active bank
+   loan — the card never gets a manual "Use" button (see powerCardUsable/POWER_CARD_USE_FN),
+   it just waits in hand until this condition is true. Called right after a card is
+   granted (in case the drawer already owes a loan), from borrowLoan() (in case they take
+   out a new loan while already holding one), and from finalizeAcceptedTrade() (in case a
+   traded-in card lands on a player who's already indebted). No-op if the holder has no
+   charge or no loan right now — safe to call speculatively from anywhere. */
+function tryAutoFireLoanForgiveness(player){
+  if(!player || !(player.loanForgivenessCards>0) || !(player.loan>0)) return;
+  const owed = player.loan;
+  player.loanForgivenessCards--;
+  player.loan = 0;
+  player.loanTermTurns = 0;
+  log(`<span class="who" style="color:${player.color}">${player.name}</span>'s <b>Loan Forgiveness</b> wipes out the $${fmt(owed)} still owed on their bank loan!`);
+  showCardDraw({id:++cardDrawSeq, kind:'power', glyph:'\u{1F3E6}', title:'LOAN FORGIVENESS USED', who:player.name, text:`Loan Forgiveness cancelled $${fmt(owed)} of bank loan.`});
+  playCardPopupSound();
+  if(cardDrawTimer) clearTimeout(cardDrawTimer);
+  cardDrawTimer = setTimeout(()=>{ cardDrawTimer = null; hideCardDraw(); }, CARD_DRAW_MS);
+  refreshUI();
 }
 /* Property Swap is only "fair" when both sides of the trade are the same kind of
    property: a country tile (has a .group) can only go for another country tile,
@@ -244,18 +310,21 @@ function renderPowerBadges(pid, p){
     p.sharedShieldCharges>0 ? {glyph:'\u{1F91D}', n:p.sharedShieldCharges, title:'Shared Shield (team mode)'} : null,
     p.extraRollCredits>0 ? {glyph:'\u{1F4E3}', n:p.extraRollCredits, title:'Rally bonus roll(s) banked for their next turn'} : null,
     p.pooledPaydayCards>0 ? {glyph:'\u{1F4B8}', n:p.pooledPaydayCards, title:'Pooled Payday (team mode)'} : null,
-    p.highRiseHustleCards>0 ? {glyph:'\u{1F3D9}\uFE0F', n:p.highRiseHustleCards, title:'High-Rise Hustle (team mode)'} : null,
+    p.highRiseHustleCards>0 ? {glyph:'\u{1F3D9}\uFE0F', n:p.highRiseHustleCards, title:'Discount — next house/hotel purchase 50% off'} : null,
     p.sabotageCards>0 ? {glyph:'\u{1F5E1}\uFE0F', n:p.sabotageCards, title:'Sabotage (team mode)'} : null,
+    p.nudgeCards>0 ? {glyph:'\u{1F449}', n:p.nudgeCards, title:'Nudge'} : null,
+    p.halfShieldCharges>0 ? {glyph:'\u{1F530}', n:p.halfShieldCharges, title:'Half Shield'} : null,
+    p.doubleSalaryCards>0 ? {glyph:'\u{1F4B5}', n:p.doubleSalaryCards, title:'Double Salary — fires on their next GO payday'} : null,
+    p.loanForgivenessCards>0 ? {glyph:'\u{1F3E6}', n:p.loanForgivenessCards, title:'Loan Forgiveness — fires the moment they owe a bank loan'} : null,
   ].filter(Boolean);
   el.innerHTML = items.map(it=>
     `<span title="${it.title}" style="display:inline-flex;align-items:center;gap:2px;font-size:11px;background:rgba(255,255,255,.08);border:1px solid var(--line);border-radius:999px;padding:1px 6px;">${it.glyph}${it.n>1?`&times;${it.n}`:''}</span>`
   ).join('') + [
     p.shieldArmed ? `<span title="Property Shield is active for the rest of this turn" style="display:inline-flex;align-items:center;gap:2px;font-size:11px;background:rgba(127,196,255,.16);border:1px solid rgba(127,196,255,.5);border-radius:999px;padding:1px 6px;">\u{1F6E1}\uFE0F armed</span>` : '',
     p.rentDoublerGroup ? `<span title="Rent from ${escapeHtml(doublerGroupLabel(p.id,p.rentDoublerGroup))} is doubled until their next turn" style="display:inline-flex;align-items:center;gap:2px;font-size:11px;background:rgba(255,211,127,.16);border:1px solid rgba(255,211,127,.5);border-radius:999px;padding:1px 6px;">\u{1F4B0} doubled: ${escapeHtml(doublerGroupLabel(p.id,p.rentDoublerGroup))}</span>` : '',
-    p.doubleSalaryArmed ? `<span title="Next GO payday is doubled" style="display:inline-flex;align-items:center;gap:2px;font-size:11px;background:rgba(140,255,160,.16);border:1px solid rgba(140,255,160,.5);border-radius:999px;padding:1px 6px;">\u{1F4B5} 2&times; salary armed</span>` : '',
     p.sharedShieldArmed ? `<span title="Shared Shield is up for the whole team, until it blocks a rent payment" style="display:inline-flex;align-items:center;gap:2px;font-size:11px;background:rgba(139,92,246,.16);border:1px solid rgba(139,92,246,.5);border-radius:999px;padding:1px 6px;">\u{1F91D} team armed</span>` : '',
     p.pooledPaydayArmed ? `<span title="Pooled Payday is doubling the whole team's rent until their next turn" style="display:inline-flex;align-items:center;gap:2px;font-size:11px;background:rgba(255,196,64,.16);border:1px solid rgba(255,196,64,.5);border-radius:999px;padding:1px 6px;">\u{1F4B8} team armed</span>` : '',
-    p.highRiseHustleUses>0 ? `<span title="High-Rise Hustle: next ${p.highRiseHustleUses} skyscraper (level-3) build${p.highRiseHustleUses===1?'':'s'} at half cost" style="display:inline-flex;align-items:center;gap:2px;font-size:11px;background:rgba(122,201,255,.16);border:1px solid rgba(122,201,255,.5);border-radius:999px;padding:1px 6px;">\u{1F3D9}\uFE0F &times;${p.highRiseHustleUses} discount</span>` : '',
+    p.halfShieldArmed ? `<span title="Half Shield is active for the rest of this turn" style="display:inline-flex;align-items:center;gap:2px;font-size:11px;background:rgba(127,196,255,.16);border:1px solid rgba(127,196,255,.5);border-radius:999px;padding:1px 6px;">\u{1F530} armed</span>` : '',
   ].join('');
 }
 
@@ -269,8 +338,43 @@ function renderPowerBadges(pid, p){
    that used to live behind their own roll-btn's, so all the existing
    validation, logging, and online host/guest command routing (see ACTIONS)
    keeps working unchanged. */
+/* Read-only viewer for another player's held power cards — separate render
+   path from renderPowerCardsHub() (which is always about your own turn/cards)
+   so viewing an opponent's hand can never accidentally expose a "Use" button
+   for a card you don't own. Reuses the same overlay/body elements; closePowerCards()
+   clears viewingOpponentPid so the next openPowerCards() call renders your own
+   cards again as normal. */
+let viewingOpponentPid = null;
+function viewOpponentCards(pid){
+  if(NET.online && !NET.host && NET.isSpectator) return;
+  if(!players[pid]) return;
+  if(pid===youAre){ openPowerCards(); return; } // clicking your own badges just opens your normal Cards hub
+  viewingOpponentPid = pid;
+  renderOpponentCardsReadOnly(pid);
+  document.getElementById('powerCardsOverlay').classList.add('show');
+}
+function renderOpponentCardsReadOnly(pid){
+  const body = document.getElementById('powerCardsBody');
+  if(!body) return;
+  const target = players[pid];
+  if(!target){ closePowerCards(); return; }
+  const owned = POWER_CARDS.filter(def => (target[CARD_FIELD[def.type]]||0) > 0);
+  const hintHTML = `<div class="pc-hint">Read-only — showing what <b style="color:${target.color}">${escapeHtml(target.name)}</b> is currently holding. You can still offer to trade for any of these from the Trade panel.</div>`;
+  if(!owned.length){
+    body.innerHTML = hintHTML + `<div class="pc-empty-note">${escapeHtml(target.name)} isn't holding any cards right now.</div>`;
+    return;
+  }
+  body.innerHTML = hintHTML + owned.map(def=>{
+    const count = target[CARD_FIELD[def.type]]||0;
+    return `<div class="pc-card owned">
+      <div class="pc-card-head"><span class="pc-glyph">${def.glyph}</span><span class="pc-title">${def.title}</span><span class="pc-count">&times;${count}</span></div>
+      <div class="pc-desc">${def.text}</div>
+    </div>`;
+  }).join('');
+}
 function openPowerCards(){
   if(NET.online && !NET.host && NET.isSpectator) return;
+  viewingOpponentPid = null; // opening your own Cards button always shows your own hand, even if you were mid-viewing someone else's
   powerCardsShowAll = false; // always open back on "cards you own", regardless of how it was left last time
   renderPowerCardsHub();
   document.getElementById('powerCardsOverlay').classList.add('show');
@@ -280,6 +384,7 @@ function togglePowerCardsShowAll(){
   renderPowerCardsHub();
 }
 function closePowerCards(){
+  viewingOpponentPid = null;
   document.getElementById('powerCardsOverlay').classList.remove('show');
 }
 /* true if the player already has ANY of the tap-a-tile pick modes open
@@ -304,10 +409,11 @@ function powerCardUsable(type, player, isYourTurn){
   if(type==='swap') return !busy; // playable from jail on purpose — swapping springs you out
   if(type==='sharedShield') return !busy && !awaitingEndTurn && sharedShieldUsable(player.id);
   if(type==='pooledPayday') return !busy && !player.pooledPaydayArmed;
-  if(type==='highRiseHustle') return !busy;
   if(type==='sabotage') return !busy && !anyPickModeActive();
   if(type==='propertySwap') return !busy && !anyPickModeActive() && propertySwapEligible(player.id);
-  return false; // bankruptcyInsurance/extraRoll/fastForward/skipAhead are never manually played — they fire on their own
+  if(type==='nudge') return !busy;
+  if(type==='halfShield') return !busy && !awaitingEndTurn && !player.halfShieldArmed;
+  return false; // bankruptcyInsurance/extraRoll/fastForward/skipAhead/tollRefund/theft are never manually played — they fire on their own
 }
 function updatePowerCardsButton(){
   const el = document.getElementById('powerCardsBtnLabel');
@@ -318,9 +424,11 @@ function updatePowerCardsButton(){
 }
 function refreshPowerCardsIfOpen(){
   const ov = document.getElementById('powerCardsOverlay');
-  if(ov && ov.classList.contains('show')) renderPowerCardsHub();
+  if(!ov || !ov.classList.contains('show')) return;
+  if(viewingOpponentPid) renderOpponentCardsReadOnly(viewingOpponentPid);
+  else renderPowerCardsHub();
 }
-const POWER_CARD_USE_FN = {rentDoubler:'useRentDoublerCard', teleport:'useTeleportCard', shield:'useShieldCard', propertyFreeze:'useFreezeCard', propertySwap:'usePropertySwapCard', sharedShield:'useSharedShieldCard', pooledPayday:'usePooledPaydayCard', highRiseHustle:'useHighRiseHustleCard', sabotage:'useSabotageCard'};
+const POWER_CARD_USE_FN = {rentDoubler:'useRentDoublerCard', teleport:'useTeleportCard', shield:'useShieldCard', propertyFreeze:'useFreezeCard', propertySwap:'usePropertySwapCard', sharedShield:'useSharedShieldCard', pooledPayday:'usePooledPaydayCard', sabotage:'useSabotageCard', halfShield:'useHalfShieldCard'};
 function renderPowerCardsHub(){
   const body = document.getElementById('powerCardsBody');
   if(!body) return;
@@ -394,6 +502,15 @@ function renderPowerCardsHub(){
         } else {
           actionsHTML += `<div class="pc-empty-note">No valid opponent to freeze right now.</div>`;
         }
+      } else if(def.type==='nudge'){
+        // targets a small +/- space offset the holder picks, same dropdown
+        // pattern as Rent Doubler/Swap/Property Freeze above — resolves
+        // instantly (no board tap needed), so the modal just closes right away.
+        const optHTML = [-3,-2,-1,1,2,3].map(n=>`<option value="${n}" ${n===1?'selected':''}>${n>0?'+':'−'}${Math.abs(n)} space${Math.abs(n)===1?'':'s'} ${n>0?'forward':'back'}</option>`).join('');
+        actionsHTML += `<div class="pc-actions">
+          <select class="pc-select" id="pcNudgeAmount">${optHTML}</select>
+          <button class="buy-btn yes" ${usable?'':'disabled'} onclick="const __n=parseInt(document.getElementById('pcNudgeAmount').value);useNudgeCard(__n);closePowerCards();">Use</button>
+        </div>`;
       } else if(POWER_CARD_USE_FN[def.type]){
         const fn = POWER_CARD_USE_FN[def.type];
         const closesModal = (def.type==='teleport'||def.type==='sabotage'||def.type==='propertySwap');

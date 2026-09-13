@@ -3,7 +3,7 @@ function purchasable(t){ return !t.corner && t.price && t.price.indexOf('%')===-
 tiles.forEach(t=>{ if(purchasable(t)) { t.owner=null; t.houses=0; t.mortgaged=false; t.frozenTurns=0; } });
 
 const players = {};
-PLAYER_IDS.forEach((id,i)=>{const car=CAR_LIST[i%CAR_LIST.length].key; players[id]={id,name:PLAYER_DEFAULTS[i][0],balance:1500,pos:0,color:colorForCar(car),car,inJail:false,jailTurns:0,bankrupt:false,active:i===0,doublesCount:0,loan:0,loanTermTurns:0,skipNextTurn:false,reconnecting:false,discDeadline:0,rentDoublerCharges:0,jailFreeCards:0,shieldCharges:0,teleportCards:0,skipAheadCards:0,propertyFreezeCards:0,swapCards:0,propertySwapCards:0,bankruptcyInsuranceCharges:0,fastForwardCards:0,sharedShieldCharges:0,extraRollCredits:0,pooledPaydayCards:0,highRiseHustleCards:0,highRiseHustleUses:0,sabotageCards:0,shieldArmed:false,rentDoublerGroup:null,doubleSalaryArmed:false,sharedShieldArmed:false,pooledPaydayArmed:false,team:null,ready:false,wantsRematch:false};});
+PLAYER_IDS.forEach((id,i)=>{const car=CAR_LIST[i%CAR_LIST.length].key; players[id]={id,name:PLAYER_DEFAULTS[i][0],balance:1500,pos:0,color:colorForCar(car),car,inJail:false,jailTurns:0,bankrupt:false,active:i===0,doublesCount:0,loan:0,loanTermTurns:0,skipNextTurn:false,reconnecting:false,discDeadline:0,rentDoublerCharges:0,jailFreeCards:0,shieldCharges:0,teleportCards:0,skipAheadCards:0,propertyFreezeCards:0,swapCards:0,propertySwapCards:0,bankruptcyInsuranceCharges:0,fastForwardCards:0,sharedShieldCharges:0,extraRollCredits:0,pooledPaydayCards:0,highRiseHustleCards:0,sabotageCards:0,nudgeCards:0,halfShieldCharges:0,halfShieldArmed:false,lastRentPaid:0,shieldArmed:false,rentDoublerGroup:null,doubleSalaryCards:0,loanForgivenessCards:0,sharedShieldArmed:false,pooledPaydayArmed:false,team:null,ready:false,wantsRematch:false};});
 // letters available for alliance/team mode pairings — up to 4 teams of 2 across the 8 seats
 const TEAM_LETTERS = ['A','B','C','D'];
 syncTokenVisibility(); // only the initial player (p1) has a car until others actually join
@@ -83,8 +83,8 @@ let CONFIG = {
 
   luckyWheelPowerOnly: true, // true (default): Lucky Wheel tile always draws a power card instead, and the tile itself relabels/re-skins on the board (see updateSpecialTileVisuals()). false: it always draws cash instead, never a power card.
   bdayPowerOnly: true, // true (default): Happy Birthday tile always draws a power card, never cash. false: it always draws its cash bonus instead, and the tile itself relabels/re-skins on the board.
-  powerCardsEnabled: { shield:true, rentDoubler:true, jailFree:true, teleport:true, skipAhead:true, propertyFreeze:true, swap:true, propertySwap:true, bankruptcyInsurance:true, doubleSalary:true, loanForgiveness:true, extraRoll:true, fastForward:true, stealCard:true, sharedShield:true, rally:true, pooledPayday:true, highRiseHustle:true, sabotage:true },
-  powerCardWeights:  { shield:25,   rentDoubler:25,   jailFree:25,   teleport:25,   skipAhead:25,   propertyFreeze:25,   swap:25,   propertySwap:25,   bankruptcyInsurance:25,   doubleSalary:25,   loanForgiveness:25,   extraRoll:25,   fastForward:25,   stealCard:25,   sharedShield:25,   rally:25,   pooledPayday:25,   highRiseHustle:25,   sabotage:25 }, // relative draw weight among the enabled cards — sharedShield/rally/pooledPayday/highRiseHustle/sabotage are additionally gated by CONFIG.teamsEnabled itself (see pickPowerCard)
+  powerCardsEnabled: { shield:true, rentDoubler:true, jailFree:true, teleport:true, skipAhead:true, propertyFreeze:true, swap:true, propertySwap:true, bankruptcyInsurance:true, doubleSalary:true, loanForgiveness:true, extraRoll:true, fastForward:true, stealCard:true, sharedShield:true, rally:true, pooledPayday:true, highRiseHustle:true, sabotage:true, nudge:true, tollRefund:true, halfShield:true, theft:true },
+  powerCardWeights:  { shield:25,   rentDoubler:25,   jailFree:25,   teleport:25,   skipAhead:25,   propertyFreeze:25,   swap:25,   propertySwap:25,   bankruptcyInsurance:25,   doubleSalary:25,   loanForgiveness:25,   extraRoll:25,   fastForward:25,   stealCard:25,   sharedShield:25,   rally:25,   pooledPayday:25,   highRiseHustle:25,   sabotage:25,   nudge:25,   tollRefund:25,   halfShield:25,   theft:25 }, // relative draw weight among the enabled cards — sharedShield/rally/pooledPayday/sabotage are additionally gated by CONFIG.teamsEnabled itself (see pickPowerCard); Discount (highRiseHustle) is no longer team-only. All weights kept equal so every power card is equally likely to be drawn — no settings-menu toggle for these four yet, tune the numbers here directly.
   skipAheadSpaces: 5, // how many spaces forward a drawn Skip Ahead card instantly moves its player — fixed, doesn't wrap into a GO bonus
 
   sideBetsEnabled: false // lets any non-active player wager cash against the active player's next roll — purely social, never touches properties/rent
@@ -121,18 +121,14 @@ function houseCost(t){
 }
 /* the price a build button should show/charge for pid right now — halved
    (rounded to the nearest $10, same rounding used everywhere else in this
-   file) whenever they still have a banked High-Rise Hustle use AND this
-   particular build is the level-3 "skyscraper" purchase (t.houses going
-   from 2 to 3) — matching the card's own text, which promises a discount
-   on fully-upgraded skyscraper builds specifically, not on every house.
-   Doesn't consume anything itself — that only happens in buildHouse() once
-   a purchase actually goes through, so simply looking at this to render a
-   button's price tag is always safe. */
+   file) whenever they're holding a Discount card, regardless of which house
+   level this particular build is. Doesn't consume anything itself — that
+   only happens in buildHouse() once a purchase actually goes through, so
+   simply looking at this to render a button's price tag is always safe. */
 function houseCostForBuild(t, pid){
   const cost = houseCost(t);
   const player = players[pid];
-  const isSkyscraperBuild = (t.houses||0)===2;
-  if(player && player.highRiseHustleUses>0 && isSkyscraperBuild) return Math.max(10, Math.round(cost/2/10)*10);
+  if(player && player.highRiseHustleCards>0) return Math.max(10, Math.round(cost/2/10)*10);
   return cost;
 }
 function mortgageValue(t){
@@ -394,6 +390,24 @@ function checkBankrupt(pid, creditorId, resume){
   cardDrawTimer = setTimeout(()=>{ cardDrawTimer = null; hideCardDraw(); }, CARD_DRAW_MS);
   refreshUI();
   return true;
+}
+
+/* Fires a held Bankruptcy Insurance the instant it lands in the hand of a player
+   who's already in the red — e.g. traded to them (see finalizeAcceptedTrade()).
+   Mirrors the wipe in checkBankrupt() but skips all of pendingDebt/busy handling
+   since this only ever runs on a receiving side that isn't already mid-turn. */
+function tryAutoFireInsuranceOnReceive(pid){
+  const player = players[pid];
+  if(!player || player.bankrupt || player.balance>=0 || !(player.bankruptcyInsuranceCharges>0)) return;
+  const owed = -player.balance;
+  player.bankruptcyInsuranceCharges--;
+  player.balance = 0;
+  log(`<span class="who" style="color:${player.color}">${player.name}</span> receives a <b>Bankruptcy Insurance</b> card while already in the red — it fires immediately and wipes the $${fmt(owed)} debt!`);
+  showCardDraw({id:++cardDrawSeq, kind:'power', glyph:'\u{1F4B8}', title:'BANKRUPTCY INSURANCE USED', who:player.name, text:`Bankruptcy Insurance cancelled $${fmt(owed)} in debt.`});
+  playCardPopupSound();
+  if(cardDrawTimer) clearTimeout(cardDrawTimer);
+  cardDrawTimer = setTimeout(()=>{ cardDrawTimer = null; hideCardDraw(); }, CARD_DRAW_MS);
+  refreshUI();
 }
 
 /* called after any action that changes a debtor's balance (mortgaging, selling a
@@ -1167,7 +1181,7 @@ function renderManage(pid){
         const isFullSet = ownsGroup(pid,g);
         const label = houses>=5 ? 'Hotel built' : (houses===0 ? 'No houses' : houses+' house'+(houses===1?'':'s'));
         const cost = houseCostForBuild(t, pid);
-        const discountTag = (houses===2 && players[pid]&&players[pid].highRiseHustleUses>0) ? ' <span style="color:var(--cyan);font-size:11px;">(High-Rise Hustle)</span>' : '';
+        const discountTag = (players[pid]&&players[pid].highRiseHustleCards>0) ? ' <span style="color:var(--cyan);font-size:11px;">(Discount)</span>' : '';
         const unevenBlock = CONFIG.evenBuildRule && houses>groupMin;
         const isFrozen = (t.frozenTurns||0)>0;
         const buildDisabled = houses>=5 || t.mortgaged || unevenBlock || isFrozen;
@@ -1307,6 +1321,7 @@ function borrowLoan(pid, amt){
   player.loanTermTurns = 10;
   player.balance += amount;
   log(`<span class="who" style="color:${player.color}">${player.name}</span> borrows $${fmt(amount)} from the bank (now owes $${fmt(player.loan)}, auto-repaid over the next 10 turns).`);
+  tryAutoFireLoanForgiveness(player); // held Loan Forgiveness can't be played by hand — it wipes this loan right away if they're holding one
   refreshUI();
   tryResumeAfterDebt(pid);
   renderManage(pid);
@@ -1382,7 +1397,7 @@ function buildHouse(name){
   }
   const houses = t.houses||0;
   if(houses>=5) return;
-  const discountUsed = player.highRiseHustleUses>0 && houses===2; // only the level-3 "skyscraper" build burns a discount
+  const discountUsed = player.highRiseHustleCards>0; // Discount card burns on the very next house/hotel purchase, any level
   const cost = houseCostForBuild(t, pid);
   if(player.balance < cost){
     log(`<span class="who" style="color:${player.color}">${player.name}</span> can't afford to build on <b>${t.name}</b>.`);
@@ -1391,8 +1406,8 @@ function buildHouse(name){
   player.balance -= cost;
   t.houses = houses+1;
   bumpStat('housesBuilt', pid);
-  if(discountUsed) player.highRiseHustleUses--;
-  log(`<span class="who" style="color:${player.color}">${player.name}</span> builds ${t.houses>=5?'a <b>hotel</b>':'a house'} on <b>${t.name}</b> (-$${cost}${discountUsed?' — High-Rise Hustle discount!':''}).`);
+  if(discountUsed) player.highRiseHustleCards--;
+  log(`<span class="who" style="color:${player.color}">${player.name}</span> builds ${t.houses>=5?'a <b>hotel</b>':'a house'} on <b>${t.name}</b> (-$${cost}${discountUsed?' — Discount card used!':''}).`);
   refreshUI();
   renderManage(pid);
 }
@@ -1661,6 +1676,11 @@ function finalizeAcceptedTrade(id){
   activeTrades.splice(ix,1);updateTradesTabCount();renderTradesList();
   gameStats.tradesCompleted = (gameStats.tradesCompleted||0)+1;
   log(`${a.name} and ${b.name} completed a trade.`);
+  // Bankruptcy Insurance / Loan Forgiveness can't be manually played — if a traded-in
+  // copy lands on a side that's already in the situation it fixes, it fires right now
+  // instead of waiting for the condition to happen again later.
+  tryAutoFireInsuranceOnReceive(tr.a); tryAutoFireInsuranceOnReceive(tr.b);
+  tryAutoFireLoanForgiveness(a); tryAutoFireLoanForgiveness(b);
   refreshUI();
 }
 function declineTrade(id){
@@ -2126,7 +2146,10 @@ const TOAST_RULES = [
   [/raises a property shield|raises a shared shield/, 'tiny', '🛡️'],
   [/uses a rent doubler/, 'tiny', '💹'],
   [/arms pooled payday/, 'tiny', '📣'],
-  [/plays high-rise hustle/, 'tiny', '🏗️'],
+  [/discount card used/, 'toast', '🏗️'],
+  [/double salary used/, 'toast', '💵'],
+  [/loan forgiveness wipes out/, 'toast', '🏦'],
+  [/bankruptcy insurance (wipes|cancels)|receives a bankruptcy insurance card/, 'toast', '💸'],
   [/plays a teleport/, 'toast', '🌀'],
   [/plays a property swap/, 'toast', '🔄'],
   [/plays a swap card/, 'toast', '🔄'],
@@ -2591,10 +2614,10 @@ function moveToken(pid, steps){
     if(player.pos===0){
       const landedOnGo = remaining===1; // this is the final step of the move — they stopped exactly on GO
       let amt = landedOnGo ? CONFIG.goLandingBonus : CONFIG.salary;
-      const doubled = !!player.doubleSalaryArmed;
+      const doubled = (player.doubleSalaryCards||0) > 0;
       if(doubled){
         amt *= 2;
-        player.doubleSalaryArmed = false;
+        player.doubleSalaryCards--;
       }
       player.balance += amt;
       bumpStat('goSalary', pid, amt);
@@ -2891,15 +2914,27 @@ function resolveTile(pid, idx){
     rent *= 2;
     pooledPaydayUsed = true;
   }
+  // Half Shield: a weaker cousin of Property Shield — knocks off half (rounded
+  // down) of the final rent instead of blocking it outright, and unlike the
+  // full Shield doesn't cancel the payment entirely, so the turn just carries
+  // on normally below rather than returning early. Applied after Rent Doubler/
+  // Pooled Payday so it's halving whatever actually would have been charged.
+  let halfShieldUsed = false;
+  if(player.halfShieldArmed){
+    rent = Math.floor(rent/2);
+    player.halfShieldArmed = false;
+    halfShieldUsed = true;
+  }
   player.balance -= rent;
   owner.balance += rent;
+  player.lastRentPaid = rent; // stamped for a later Toll Refund draw to key off (see grantPowerCard)
   bumpStat('rentPaid', pid, rent);
   bumpStat('rentCollected', t.owner, rent);
   if(!gameStats.biggestRent || rent>gameStats.biggestRent.amt){
     gameStats.biggestRent = {amt:rent, payerId:pid, ownerId:t.owner, tileName:t.name};
   }
   const houseNote = t.houses>0 ? (t.houses>=5?' (hotel)':` (${t.houses} house${t.houses===1?'':'s'})`) : '';
-  const rentNotes = [doublerUsed?'Rent Doubler doubled it!':'', pooledPaydayUsed?'Pooled Payday doubled it!':''].filter(Boolean).join(', ');
+  const rentNotes = [doublerUsed?'Rent Doubler doubled it!':'', pooledPaydayUsed?'Pooled Payday doubled it!':'', halfShieldUsed?'Half Shield cut it in half!':''].filter(Boolean).join(', ');
   log(`<span class="who" style="color:${player.color}">${player.name}</span> lands on <b>${t.name}</b>${houseNote}, owned by <span class="who" style="color:${owner.color}">${owner.name}</span> — pays $${fmt(rent)} rent${rentNotes?` (${rentNotes})`:''}.`);
   playRentSound();
   if(pid===youAre || sameTeam(t.owner,youAre)) vibrate(30); // felt by whichever side of the payment is actually you (or their teammate)
@@ -3099,7 +3134,7 @@ function showTileInfo(idx){
       const buildDisabled = !myTurnNow || notEligibleSet || houses>=5 || t.mortgaged || unevenBlock || isFrozen;
       const cost = houseCost(t);
       const buildCost = houseCostForBuild(t, youAre);
-      const discountTag = (houses===2 && players[youAre]&&players[youAre].highRiseHustleUses>0) ? ' <span style="color:var(--cyan);font-size:11px;">(High-Rise Hustle)</span>' : '';
+      const discountTag = (players[youAre]&&players[youAre].highRiseHustleCards>0) ? ' <span style="color:var(--cyan);font-size:11px;">(Discount)</span>' : '';
       actionsHtml += `<button class="buy-btn no" ${(houses>0&&myTurnNow&&!isFrozen)?'':'disabled'} ${houses>0?'':'style="visibility:hidden;"'} onclick="sellHouse('${t.name}')">Sell house (+$${Math.round(cost/2/10)*10})</button>`;
       actionsHtml += `<button class="buy-btn yes" ${buildDisabled?'disabled':''} onclick="buildHouse('${t.name}')">${houses>=4?'&#127976; Build hotel':'&#127968; Build house'} ($${buildCost})</button>${discountTag}`;
       if(isFrozen) actionsHtml += `<div class="ti-hint">&#10052;&#65039; Frozen for ${t.frozenTurns} more turn${t.frozenTurns===1?'':'s'} — no building, selling, mortgaging, or rent.</div>`;
@@ -3385,6 +3420,22 @@ function useShieldCard(){
   refreshUI();
 }
 
+/* Weaker cousin of useShieldCard — arms a held Half Shield for this turn only,
+   same "spend now, protects until endTurn()" shape as Property Shield above
+   (see the matching clear in endTurn()), just knocks the rent down instead of
+   blocking it outright (see the Half Shield check in resolveTile's rent block). */
+function useHalfShieldCard(){
+  if(busy || awaitingEndTurn || gameOver) return;
+  if(order[turnIdx] !== youAre) return;
+  const pid = order[turnIdx];
+  const player = players[pid];
+  if(!player || player.halfShieldArmed || !(player.halfShieldCharges>0)) return;
+  player.halfShieldCharges--;
+  player.halfShieldArmed = true;
+  log(`<span class="who" style="color:${player.color}">${player.name}</span> raises a <b>Half Shield</b> for this turn.`);
+  refreshUI();
+}
+
 /* Arms a held Shared Shield — team mode only. Unlike Property Shield, this does
    NOT clear at the armer's own endTurn(): it has to keep protecting the team
    even after the armer's turn ends, since the rent it blocks may well land on
@@ -3445,22 +3496,10 @@ function usePooledPaydayCard(){
   refreshUI();
 }
 
-/* Spends a held High-Rise Hustle, banking 2 half-price building purchases —
-   see houseCostForBuild()/buildHouse(), which spend down highRiseHustleUses
-   one at a time as the player actually builds. Playing a second copy while
-   uses are still banked simply adds 2 more rather than being blocked, since
-   the card has no "already armed" state to collide with. */
-function useHighRiseHustleCard(){
-  if(gameOver) return;
-  if(order[turnIdx] !== youAre) return;
-  const pid = order[turnIdx];
-  const player = players[pid];
-  if(!player || !(player.highRiseHustleCards>0)) return;
-  player.highRiseHustleCards--;
-  player.highRiseHustleUses = (player.highRiseHustleUses||0) + 2;
-  log(`<span class="who" style="color:${player.color}">${player.name}</span> plays <b>High-Rise Hustle</b> — their next 2 building purchases cost half price.`);
-  refreshUI();
-}
+/* Discount (formerly High-Rise Hustle) is now an auto-fire card, like Bankruptcy
+   Insurance — it just sits in hand until the holder actually builds, at which
+   point houseCostForBuild()/buildHouse() apply the 50% discount and burn one
+   copy automatically. No manual "Use" button (see POWER_CARD_USE_FN/powerCardUsable). */
 
 /* spends a held Teleport power card — enters "pick a tile" mode; the next tile
    the player clicks (see tile click handler) becomes their new position instead
@@ -3502,6 +3541,39 @@ function resolveTeleportTo(idx){
   const t = tiles[idx];
   log(`<span class="who" style="color:${player.color}">${player.name}</span> plays a <b>Teleport</b> card and warps to <b>${t.name}</b>.`);
   showCardDraw({id:++cardDrawSeq, kind:'power', glyph:'\u{1F300}', title:'TELEPORT', who:player.name, text:`Warped straight to ${t.name}.`});
+  playCardPopupSound();
+  if(cardDrawTimer) clearTimeout(cardDrawTimer);
+  cardDrawTimer = setTimeout(()=>{ cardDrawTimer = null; hideCardDraw(); }, CARD_DRAW_MS);
+  const offset=((PLAYER_IDS.indexOf(pid)%4)-1.5)*9;
+  const p = tokenAnchorPoint(idx);
+  setTokenPos(pid, p.x+offset, p.y, {instant:true, pos:idx});
+  resolveTile(pid, idx);
+}
+
+/* Weaker cousin of Teleport — instead of warping anywhere on the board, just
+   relocates 1-3 tiles forward or backward (delta picked by the holder in the
+   Power Cards hub — see the 'nudge' branch of renderPowerCardsHub) and
+   resolves the landing tile the same way Teleport does: instant reposition,
+   no GO salary consideration (same as Teleport), full resolveTile() at the
+   destination. No board tap needed, so there's no separate pick-mode to
+   arm/cancel like Teleport/Sabotage/Property Swap have. */
+function useNudgeCard(delta){
+  if(busy || gameOver) return;
+  if(order[turnIdx] !== youAre) return;
+  const pid = order[turnIdx];
+  const player = players[pid];
+  if(!player || !(player.nudgeCards>0)) return;
+  delta = Math.trunc(Number(delta)||0);
+  delta = Math.max(-3, Math.min(3, delta));
+  if(delta===0) return;
+  player.nudgeCards--;
+  const idx = (player.pos + delta + 40) % 40;
+  player.pos = idx;
+  const t = tiles[idx];
+  const dirWord = delta>0 ? 'forward' : 'backward';
+  const spaces = Math.abs(delta);
+  log(`<span class="who" style="color:${player.color}">${player.name}</span> plays a <b>Nudge</b> card and moves ${spaces} space${spaces===1?'':'s'} ${dirWord} to <b>${t.name}</b>.`);
+  showCardDraw({id:++cardDrawSeq, kind:'power', glyph:'\u{1F449}', title:'NUDGE', who:player.name, text:`Moved ${spaces} space${spaces===1?'':'s'} ${dirWord} to ${t.name}.`});
   playCardPopupSound();
   if(cardDrawTimer) clearTimeout(cardDrawTimer);
   cardDrawTimer = setTimeout(()=>{ cardDrawTimer = null; hideCardDraw(); }, CARD_DRAW_MS);
@@ -3816,14 +3888,14 @@ function useFreezeCard(targetPid){
   const target = players[targetPid];
   const targets = tiles.map((x,i)=>({x,i})).filter(({x})=>purchasable(x) && x.owner===targetPid);
   player.propertyFreezeCards--;
-  targets.forEach(({x,i})=>{ x.frozenTurns = 2; setFrozenVisual(i, true); });
+  targets.forEach(({x,i})=>{ x.frozenTurns = 1; setFrozenVisual(i, true); });
   if(targets.length){
     const groupLabel = targets.map(({x})=>x.name).join(', ');
-    log(`<span class="who" style="color:${player.color}">${player.name}</span> plays a <b>Property Freeze</b> card on <span class="who" style="color:${target.color}">${target.name}</span> — <b>${groupLabel}</b> can't be built on, sold, mortgaged, or collect rent for their next 2 turns.`);
+    log(`<span class="who" style="color:${player.color}">${player.name}</span> plays a <b>Property Freeze</b> card on <span class="who" style="color:${target.color}">${target.name}</span> — <b>${groupLabel}</b> can't be built on, sold, mortgaged, or collect rent for their next turn.`);
   } else {
     log(`<span class="who" style="color:${player.color}">${player.name}</span> plays a <b>Property Freeze</b> card on <span class="who" style="color:${target.color}">${target.name}</span>, who owns no properties right now — the card is spent with no effect.`);
   }
-  showCardDraw({id:++cardDrawSeq, kind:'power', glyph:'\u2744\uFE0F', title:'PROPERTY FREEZE', who:player.name, text: targets.length ? `${target.name}'s ${targets.length} propert${targets.length===1?'y is':'ies are'} frozen for their next 2 turns.` : `${target.name} owns no properties to freeze.`});
+  showCardDraw({id:++cardDrawSeq, kind:'power', glyph:'\u2744\uFE0F', title:'PROPERTY FREEZE', who:player.name, text: targets.length ? `${target.name}'s ${targets.length} propert${targets.length===1?'y is':'ies are'} frozen for their next turn.` : `${target.name} owns no properties to freeze.`});
   playCardPopupSound();
   if(cardDrawTimer) clearTimeout(cardDrawTimer);
   cardDrawTimer = setTimeout(()=>{ cardDrawTimer = null; hideCardDraw(); }, CARD_DRAW_MS);
@@ -3837,9 +3909,10 @@ function useFreezeCard(targetPid){
    whole opposing TEAM rather than just an opposing player — clicking it
    freezes every tile that team owns in that same group at once, not just
    the one tapped. Each frozen tile still counts down on its own owner's
-   turns exactly like a regular Property Freeze (see advanceTurn()), just
-   for 1 turn instead of 2 — half the duration, in exchange for hitting the
-   whole group in one shot. Railroads/utilities have no .group, so they can
+   turns exactly like a regular Property Freeze (see advanceTurn()), same
+   1-turn duration, but hits every property in the group — and every
+   teammate who owns a piece of it — in one shot instead of just one
+   opponent's whole holdings. Railroads/utilities have no .group, so they can
    never be a valid target. */
 let sabotagePickMode = false;
 function sabotageTargetValid(t, pid){
@@ -4014,7 +4087,7 @@ function endTurn(){
   const pid = order[turnIdx];
   // Property Shield only ever covers "before you roll until you end your turn" —
   // whether or not it actually blocked a rent payment, it doesn't carry over.
-  if(players[pid]) players[pid].shieldArmed = false;
+  if(players[pid]){ players[pid].shieldArmed = false; players[pid].halfShieldArmed = false; }
   // catches anything that left the ending player short on the way in here
   // (e.g. paying bail) — pause and make them raise the cash before the turn
   // actually ends. Loan installments are no longer checked here — see
@@ -5416,7 +5489,7 @@ function renderPlayerCards(force){
   root.innerHTML=activeIds.map(pid=>{
     const i=PLAYER_IDS.indexOf(pid);
     const car=players[pid].car||CAR_LIST[i%CAR_LIST.length].key;
-    return `<div class="player-card ${i?'other':'active'}" id="card-${pid}" onclick="setYou('${pid}')"><div class="balance-block"><div class="pin-icon">◎</div><div class="balance-amt"><span class="cur">$</span><span class="bal-num" id="bal-${pid}">1,500</span></div><div class="action-row"><button class="action-pill" id="tradeBtn-${pid}" onclick="openTrade('${pid}')">Trade</button><button class="action-pill danger" id="bankruptBtn-${pid}" onclick="declareBankrupt('${pid}')">Bankrupt</button></div></div><div class="avatar-hex"><svg class="turn-ring" viewBox="0 0 100 100" aria-hidden="true"><circle class="turn-ring-track" cx="50" cy="50" r="46"></circle><circle class="turn-ring-progress" cx="50" cy="50" r="46"></circle></svg><div class="turn-ring-secs" id="secs-${pid}"></div><model-viewer class="avatar-car-mv" data-car="${car}" src="${CAR_MODELS[car]}" disable-zoom interaction-prompt="none" camera-orbit="-35deg 72deg auto" field-of-view="14deg" exposure="1.2" environment-image="neutral" loading="eager"></model-viewer></div><div class="player-info"><div class="player-info-main"><div class="player-name"><span class="player-name-text" id="name-${pid}">Player ${i+1}</span><span class="turn-flag" title="Their turn"></span></div><div class="player-role"><span class="dot" id="dot-${pid}"></span><span id="role-${pid}">Player ${i+1}</span></div><div class="disc-badge-row"><div class="disc-badge" id="discBadge-${pid}"></div><button type="button" class="disc-kick-btn" id="discKick-${pid}" onclick="confirmKickPlayer('${pid}')">Kick</button></div><div class="power-badges" id="powerBadges-${pid}" style="display:flex;gap:4px;margin-top:4px;flex-wrap:wrap;"></div></div></div></div>`;
+    return `<div class="player-card ${i?'other':'active'}" id="card-${pid}" onclick="setYou('${pid}')"><div class="balance-block"><div class="pin-icon">◎</div><div class="balance-amt"><span class="cur">$</span><span class="bal-num" id="bal-${pid}">1,500</span></div><div class="action-row"><button class="action-pill" id="tradeBtn-${pid}" onclick="openTrade('${pid}')">Trade</button><button class="action-pill danger" id="bankruptBtn-${pid}" onclick="declareBankrupt('${pid}')">Bankrupt</button></div></div><div class="avatar-hex"><svg class="turn-ring" viewBox="0 0 100 100" aria-hidden="true"><circle class="turn-ring-track" cx="50" cy="50" r="46"></circle><circle class="turn-ring-progress" cx="50" cy="50" r="46"></circle></svg><div class="turn-ring-secs" id="secs-${pid}"></div><model-viewer class="avatar-car-mv" data-car="${car}" src="${CAR_MODELS[car]}" disable-zoom interaction-prompt="none" camera-orbit="-35deg 72deg auto" field-of-view="14deg" exposure="1.2" environment-image="neutral" loading="eager"></model-viewer></div><div class="player-info"><div class="player-info-main"><div class="player-name"><span class="player-name-text" id="name-${pid}">Player ${i+1}</span><span class="turn-flag" title="Their turn"></span></div><div class="player-role"><span class="dot" id="dot-${pid}"></span><span id="role-${pid}">Player ${i+1}</span></div><div class="disc-badge-row"><div class="disc-badge" id="discBadge-${pid}"></div><button type="button" class="disc-kick-btn" id="discKick-${pid}" onclick="confirmKickPlayer('${pid}')">Kick</button></div><div class="power-badges" id="powerBadges-${pid}" title="Click to see this player's cards" style="display:flex;gap:4px;margin-top:4px;flex-wrap:wrap;cursor:pointer;" onclick="event.stopPropagation();viewOpponentCards('${pid}')"></div></div></div></div>`;
   }).join('');
 }
 
@@ -5839,11 +5912,15 @@ function beginGame(){
     p.extraRollCredits = 0;
     p.pooledPaydayCards = 0;
     p.highRiseHustleCards = 0;
-    p.highRiseHustleUses = 0;
+    p.loanForgivenessCards = 0;
     p.sabotageCards = 0;
+    p.nudgeCards = 0;
+    p.halfShieldCharges = 0;
+    p.halfShieldArmed = false;
+    p.lastRentPaid = 0;
     p.shieldArmed = false;
     p.rentDoublerGroup = null;
-    p.doubleSalaryArmed = false;
+    p.doubleSalaryCards = 0;
     p.sharedShieldArmed = false;
     p.pooledPaydayArmed = false;
     const cardEl = document.getElementById('card-'+pid);
