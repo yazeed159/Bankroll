@@ -3,7 +3,7 @@ function purchasable(t){ return !t.corner && t.price && t.price.indexOf('%')===-
 tiles.forEach(t=>{ if(purchasable(t)) { t.owner=null; t.houses=0; t.mortgaged=false; t.frozenTurns=0; } });
 
 const players = {};
-PLAYER_IDS.forEach((id,i)=>{const car=CAR_LIST[i%CAR_LIST.length].key; players[id]={id,name:PLAYER_DEFAULTS[i][0],balance:1500,pos:0,color:colorForCar(car),car,inJail:false,jailTurns:0,bankrupt:false,active:i===0,doublesCount:0,loan:0,loanTermTurns:0,skipNextTurn:false,reconnecting:false,discDeadline:0,rentDoublerCharges:0,jailFreeCards:0,shieldCharges:0,teleportCards:0,skipAheadCards:0,propertyFreezeCards:0,swapCards:0,propertySwapCards:0,bankruptcyInsuranceCharges:0,fastForwardCards:0,sharedShieldCharges:0,extraRollCredits:0,pooledPaydayCards:0,highRiseHustleCards:0,sabotageCards:0,nudgeCards:0,halfShieldCharges:0,halfShieldArmed:false,lastRentPaid:0,shieldArmed:false,rentDoublerGroup:null,doubleSalaryCards:0,loanForgivenessCards:0,sharedShieldArmed:false,pooledPaydayArmed:false,team:null,ready:false,wantsRematch:false};});
+PLAYER_IDS.forEach((id,i)=>{const car=CAR_LIST[i%CAR_LIST.length].key; players[id]={id,name:PLAYER_DEFAULTS[i][0],balance:1500,pos:0,color:colorForCar(car),car,inJail:false,jailTurns:0,bankrupt:false,active:i===0,doublesCount:0,loan:0,loanTermTurns:0,skipNextTurn:false,reconnecting:false,discDeadline:0,rentDoublerCharges:0,jailFreeCards:0,shieldCharges:0,teleportCards:0,skipAheadCards:0,propertyFreezeCards:0,swapCards:0,propertySwapCards:0,bankruptcyInsuranceCharges:0,fastForwardCards:0,sharedShieldCharges:0,extraRollCredits:0,pooledPaydayCards:0,highRiseHustleCards:0,sabotageCards:0,halfShieldCharges:0,halfShieldArmed:false,lastRentPaid:0,shieldArmed:false,rentDoublerGroup:null,doubleSalaryCards:0,loanForgivenessCards:0,sharedShieldArmed:false,pooledPaydayArmed:false,team:null,ready:false,wantsRematch:false};});
 // letters available for alliance/team mode pairings — up to 4 teams of 2 across the 8 seats
 const TEAM_LETTERS = ['A','B','C','D'];
 // a distinct accent color per team letter, purely cosmetic — used to color-code
@@ -2666,6 +2666,34 @@ function moveToken(pid, steps){
   };
   stepOnce();
 }
+/* Setback's backward-only counterpart to moveToken() above — steps the token
+   BACKWARD one tile at a time instead of forward. Deliberately does not pay
+   any GO salary/bonus even if it steps back across GO: Setback only ever
+   fires from a Lucky Wheel/Happy Birthday tile in roughly the back half of
+   the board, so a 3-space hop backward can occasionally cross GO, and the
+   normal rule that you only get paid for *reaching* GO, never for merely
+   sailing past it, applies the same going backward as forward — no line of
+   this game's design ever pays out for retreating over the start line. */
+function moveTokenBack(pid, steps){
+  const player = players[pid];
+  let remaining = steps;
+  setTokenDriving(pid, true);
+  const stepOnce = ()=>{
+    if(remaining<=0){
+      setTokenDriving(pid, false);
+      resolveTile(pid, player.pos);
+      return;
+    }
+    player.pos = (player.pos-1+40)%40;
+    const offset=((PLAYER_IDS.indexOf(pid)%4)-1.5)*9;
+    const p = tokenAnchorPoint(player.pos);
+    setTokenPos(pid, p.x+offset, p.y, {pos:player.pos, reverse:true});
+    playFootstepSound();
+    remaining--;
+    setTimeout(stepOnce, spd(280));
+  };
+  stepOnce();
+}
 
 function resolveTile(pid, idx){
   const player = players[pid];
@@ -2781,6 +2809,17 @@ function resolveTile(pid, idx){
         setTimeout(()=>{ moveToken(pid, spaces); }, spd(1000));
         return;
       }
+      if(card.type==='nudge'){
+        // fires the instant it's drawn, always exactly 3 spaces backward — no
+        // hand, no direction/amount picker, no waiting for the player's turn
+        // to play it. Same beat-before-it-moves treatment as Skip Ahead above,
+        // just via moveTokenBack() instead (no GO salary going backward).
+        log(`<span class="who" style="color:${player.color}">${player.name}</span> hops 3 spaces back!`);
+        cardDrawTimer = setTimeout(()=>{ cardDrawTimer = null; hideCardDraw(); }, spd(CARD_DRAW_MS));
+        refreshUI();
+        setTimeout(()=>{ moveTokenBack(pid, 3); }, spd(1000));
+        return;
+      }
       cardDrawTimer = setTimeout(()=>{ cardDrawTimer = null; hideCardDraw(); }, spd(CARD_DRAW_MS));
       refreshUI();
       if(stealCardPick){ return; } // Steal a Card paused the turn to wait on the player's pick — resolveStealCardPick() calls finishTurnStep() itself once that's done
@@ -2837,6 +2876,14 @@ function resolveTile(pid, idx){
         cardDrawTimer = setTimeout(()=>{ cardDrawTimer = null; hideCardDraw(); }, spd(CARD_DRAW_MS));
         refreshUI();
         setTimeout(()=>{ moveToken(pid, spaces); }, spd(1000));
+        return;
+      }
+      if(powerOnly.type==='nudge'){
+        // see matching comment in the Lucky Wheel branch above
+        log(`<span class="who" style="color:${player.color}">${player.name}</span> hops 3 spaces back!`);
+        cardDrawTimer = setTimeout(()=>{ cardDrawTimer = null; hideCardDraw(); }, spd(CARD_DRAW_MS));
+        refreshUI();
+        setTimeout(()=>{ moveTokenBack(pid, 3); }, spd(1000));
         return;
       }
       cardDrawTimer = setTimeout(()=>{ cardDrawTimer = null; hideCardDraw(); }, spd(CARD_DRAW_MS));
@@ -3585,39 +3632,6 @@ function resolveTeleportTo(idx){
   const t = tiles[idx];
   log(`<span class="who" style="color:${player.color}">${player.name}</span> plays a <b>Teleport</b> card and warps to <b>${t.name}</b>.`);
   showCardDraw({id:++cardDrawSeq, kind:'power', glyph:'\u{1F300}', title:'TELEPORT', who:player.name, text:`Warped straight to ${t.name}.`});
-  playCardPopupSound();
-  if(cardDrawTimer) clearTimeout(cardDrawTimer);
-  cardDrawTimer = setTimeout(()=>{ cardDrawTimer = null; hideCardDraw(); }, spd(CARD_DRAW_MS));
-  const offset=((PLAYER_IDS.indexOf(pid)%4)-1.5)*9;
-  const p = tokenAnchorPoint(idx);
-  setTokenPos(pid, p.x+offset, p.y, {instant:true, pos:idx});
-  resolveTile(pid, idx);
-}
-
-/* Weaker cousin of Teleport — instead of warping anywhere on the board, just
-   relocates 1-3 tiles forward or backward (delta picked by the holder in the
-   Power Cards hub — see the 'nudge' branch of renderPowerCardsHub) and
-   resolves the landing tile the same way Teleport does: instant reposition,
-   no GO salary consideration (same as Teleport), full resolveTile() at the
-   destination. No board tap needed, so there's no separate pick-mode to
-   arm/cancel like Teleport/Sabotage/Property Swap have. */
-function useNudgeCard(delta){
-  if(busy || gameOver) return;
-  if(order[turnIdx] !== youAre) return;
-  const pid = order[turnIdx];
-  const player = players[pid];
-  if(!player || !(player.nudgeCards>0)) return;
-  delta = Math.trunc(Number(delta)||0);
-  delta = Math.max(-3, Math.min(3, delta));
-  if(delta===0) return;
-  player.nudgeCards--;
-  const idx = (player.pos + delta + 40) % 40;
-  player.pos = idx;
-  const t = tiles[idx];
-  const dirWord = delta>0 ? 'forward' : 'backward';
-  const spaces = Math.abs(delta);
-  log(`<span class="who" style="color:${player.color}">${player.name}</span> plays a <b>Short Hop</b> card and moves ${spaces} space${spaces===1?'':'s'} ${dirWord} to <b>${t.name}</b>.`);
-  showCardDraw({id:++cardDrawSeq, kind:'power', glyph:'\u{1F449}', title:'SHORT HOP', who:player.name, text:`Moved ${spaces} space${spaces===1?'':'s'} ${dirWord} to ${t.name}.`});
   playCardPopupSound();
   if(cardDrawTimer) clearTimeout(cardDrawTimer);
   cardDrawTimer = setTimeout(()=>{ cardDrawTimer = null; hideCardDraw(); }, spd(CARD_DRAW_MS));
@@ -5993,7 +6007,6 @@ function beginGame(){
     p.highRiseHustleCards = 0;
     p.loanForgivenessCards = 0;
     p.sabotageCards = 0;
-    p.nudgeCards = 0;
     p.halfShieldCharges = 0;
     p.halfShieldArmed = false;
     p.lastRentPaid = 0;

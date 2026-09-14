@@ -254,7 +254,17 @@ function renderLobbyPlayers(){
     // everyone else you're set.
     const carRowHtml = isYou ? `<div class="car-pick-row" id="carPickRow" data-pid="${pid}"></div>` : '';
     return `<div class="lobby-player-row">${kickBtn}<div class="lobby-player-top"><span class="lobby-player-dot" style="background:${p.color}"></span>${nameHtml}${readyBtn}</div><div class="lobby-player-meta">${tags}${teamCtl}</div>${carRowHtml}</div>`;
-  }).join('') + (CONFIG.teamsEnabled ? renderTeamsBoard(joined) : '');
+  }).join('');
+  // Teams board lives in its own sibling container (#lobbyTeamsWrap), NOT appended
+  // into #lobbyList above — #lobbyList (.lobby-grid) has a fixed max-height + its
+  // own scrollbar sized for a flat row list, and cramming the whole team board in
+  // there too forced both an inner scrollbar AND, once that box's content pushed
+  // the page past the viewport, an outer page scroll on top of it. Letting the
+  // board sit below as a normal block element removes the inner scroll box, and
+  // the tightened spacing in its CSS (see .lobby-teams-grid / .team-column) keeps
+  // its own footprint small enough that flipping into Teams mode doesn't usually
+  // need any scrolling on the page either.
+  document.getElementById('lobbyTeamsWrap').innerHTML = CONFIG.teamsEnabled ? renderTeamsBoard(joined) : '';
   syncCarPickRow();
   if(nameInputHadFocus){
     const el=document.getElementById('lobbyNameInput');

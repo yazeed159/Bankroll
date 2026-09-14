@@ -3341,25 +3341,29 @@ body.spectator-mode #powerCardsBtn{display:none !important;}
 .lobby-mode-tab:disabled{cursor:not-allowed;opacity:.55;}
 .lobby-mode-hint{font-size:11.5px;color:#75778e;text-align:center;margin:-6px 0 12px;}
 
-/* ---- team board: replaces .lobby-grid's flat list while Teams mode is on.
+/* ---- team board: sits in its own container (#lobbyTeamsWrap) below the flat
+   player list, on screen only while Teams mode is on. Kept deliberately tight
+   (small paddings/gaps below) so switching into Teams mode doesn't force a
+   scrollbar — neither its own nor the landing page's.
    Unassigned players sit in a horizontal holding strip up top; each team gets
    its own accented column with a live member list and a self-serve join
    button, so anyone (not just the host) can move themselves between teams. ---- */
-.lobby-teams-intro{font-size:12px;color:#8a8ca3;text-align:center;margin-bottom:12px;line-height:1.5;}
+.lobby-teams-wrap{margin-bottom:16px;}
+.lobby-teams-intro{font-size:12px;color:#8a8ca3;text-align:center;margin-bottom:10px;line-height:1.4;}
 .team-unassigned{
   background:rgba(255,255,255,.03);border:1px dashed rgba(255,255,255,.14);
-  border-radius:14px;padding:10px 12px;margin-bottom:14px;
+  border-radius:14px;padding:8px 10px;margin-bottom:10px;
 }
-.team-unassigned-label{font-size:10px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#75778e;margin-bottom:8px;}
-.team-unassigned .team-col-body{display:flex;flex-wrap:wrap;gap:7px;}
+.team-unassigned-label{font-size:10px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#75778e;margin-bottom:6px;}
+.team-unassigned .team-col-body{display:flex;flex-wrap:wrap;gap:6px;}
 .lobby-teams-grid{
-  display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:8px;
+  display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:0;
 }
 .team-column{
   --team-accent:#22d3ee;
   position:relative;background:rgba(255,255,255,.035);
   border:1px solid rgba(255,255,255,.09);border-top:3px solid var(--team-accent);
-  border-radius:14px;padding:12px;display:flex;flex-direction:column;gap:9px;
+  border-radius:14px;padding:9px 10px;display:flex;flex-direction:column;gap:6px;
   transition:.15s;
 }
 .team-column.is-mine{background:color-mix(in srgb, var(--team-accent) 10%, rgba(255,255,255,.035));box-shadow:0 0 0 1px var(--team-accent);}
@@ -3371,11 +3375,11 @@ body.spectator-mode #powerCardsBtn{display:none !important;}
   margin-left:auto;font-size:10.5px;font-weight:800;color:#989ab0;background:rgba(0,0,0,.3);
   border-radius:999px;padding:2px 8px;
 }
-.team-col-body{display:flex;flex-direction:column;gap:6px;min-height:30px;}
-.team-col-empty{font-size:11px;color:#6c6e83;font-style:italic;padding:4px 0;}
+.team-col-body{display:flex;flex-direction:column;gap:5px;min-height:22px;}
+.team-col-empty{font-size:11px;color:#6c6e83;font-style:italic;padding:2px 0;}
 .team-chip{
   display:flex;align-items:center;gap:7px;background:rgba(0,0,0,.28);
-  border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:6px 8px;font-size:12.5px;font-weight:600;
+  border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:5px 8px;font-size:12.5px;font-weight:600;
 }
 .team-chip.is-you{border-color:var(--team-accent);}
 .team-chip-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;box-shadow:0 0 0 2px rgba(255,255,255,.1);}
@@ -3388,7 +3392,7 @@ body.spectator-mode #powerCardsBtn{display:none !important;}
 .team-chip-remove:hover{color:#fb7185;}
 .team-join-btn{
   margin-top:auto;background:rgba(255,255,255,.05);border:1px solid var(--team-accent);
-  color:var(--team-accent);border-radius:9px;padding:7px 8px;font-size:11.5px;font-weight:700;
+  color:var(--team-accent);border-radius:9px;padding:6px 8px;font-size:11.5px;font-weight:700;
   cursor:pointer;transition:.15s;font-family:"Inter";
 }
 .team-join-btn:hover{background:var(--team-accent);color:#0b0c14;}

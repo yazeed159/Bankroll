@@ -46,7 +46,7 @@ const POWER_CARDS = [
   // like the jackpot they're supposed to be. Kept common via a higher default
   // draw weight in CONFIG.powerCardWeights rather than by adding any new
   // mechanics — see the comment there.
-  {type:'nudge', glyph:'\u{1F449}', title:'SHORT HOP', text:'Play it on your turn to hop your token 1–3 spaces forward or backward, then resolve wherever you land.'},
+  {type:'nudge', glyph:'\u{1F519}', title:'SETBACK', text:'Instantly hops your token 3 spaces backward the moment you draw it.'},
   {type:'tollRefund', glyph:'\u{1F9FE}', title:'TOLL REFUND', text:'Instantly refunds the last rent you paid, if any.'},
   {type:'halfShield', glyph:'\u{1F530}', title:'HALF SHIELD', text:'Blocks half (rounded down) of the next rent charged to you.'},
   {type:'theft', glyph:'\u{1FA99}', title:'THEFT', text:'Instantly steals 10% of the richest other player\u2019s cash.'},
@@ -54,12 +54,13 @@ const POWER_CARDS = [
 /* maps each POWER_CARDS type to the player-object field that holds its count —
    shared by grantPowerCard() below, the power-cards hub, card trading, and
    card auctions, so there's exactly one place that knows the field names.
-   Instant-fire cards (extraRoll, skipAhead, stealCard, rally) are intentionally
-   left out — they never sit in a player's hand, so they're never "owned" for
-   hub/trade/auction purposes. doubleSalary and loanForgiveness used to be instant
-   too, but now sit in hand (like Bankruptcy Insurance) until their trigger
-   condition happens, so they can be traded like every other held card. */
-const CARD_FIELD = {rentDoubler:'rentDoublerCharges', jailFree:'jailFreeCards', teleport:'teleportCards', shield:'shieldCharges', propertyFreeze:'propertyFreezeCards', swap:'swapCards', propertySwap:'propertySwapCards', bankruptcyInsurance:'bankruptcyInsuranceCharges', fastForward:'fastForwardCards', sharedShield:'sharedShieldCharges', pooledPayday:'pooledPaydayCards', highRiseHustle:'highRiseHustleCards', sabotage:'sabotageCards', nudge:'nudgeCards', halfShield:'halfShieldCharges', doubleSalary:'doubleSalaryCards', loanForgiveness:'loanForgivenessCards'};
+   Instant-fire cards (extraRoll, skipAhead, nudge, stealCard, rally) are
+   intentionally left out — they never sit in a player's hand, so they're
+   never "owned" for hub/trade/auction purposes. doubleSalary and
+   loanForgiveness used to be instant too, but now sit in hand (like
+   Bankruptcy Insurance) until their trigger condition happens, so they can
+   be traded like every other held card. */
+const CARD_FIELD = {rentDoubler:'rentDoublerCharges', jailFree:'jailFreeCards', teleport:'teleportCards', shield:'shieldCharges', propertyFreeze:'propertyFreezeCards', swap:'swapCards', propertySwap:'propertySwapCards', bankruptcyInsurance:'bankruptcyInsuranceCharges', fastForward:'fastForwardCards', sharedShield:'sharedShieldCharges', pooledPayday:'pooledPaydayCards', highRiseHustle:'highRiseHustleCards', sabotage:'sabotageCards', halfShield:'halfShieldCharges', doubleSalary:'doubleSalaryCards', loanForgiveness:'loanForgivenessCards'};
 function grantPowerCard(player, card){
   if(card.type==='rentDoubler') player.rentDoublerCharges = (player.rentDoublerCharges||0) + 1;
   else if(card.type==='jailFree') player.jailFreeCards = (player.jailFreeCards||0) + 1;
@@ -121,7 +122,11 @@ function grantPowerCard(player, card){
   else if(card.type==='pooledPayday') player.pooledPaydayCards = (player.pooledPaydayCards||0) + 1;
   else if(card.type==='highRiseHustle') player.highRiseHustleCards = (player.highRiseHustleCards||0) + 1;
   else if(card.type==='sabotage') player.sabotageCards = (player.sabotageCards||0) + 1;
-  else if(card.type==='nudge') player.nudgeCards = (player.nudgeCards||0) + 1;
+  else if(card.type==='nudge'){
+    // instant, like Skip Ahead — doesn't set any charge on the player object at
+    // all. The draw site (resolveTile's wheel/gift branches) sees
+    // card.type==='nudge' and hops the token backward 3 spaces itself, right away.
+  }
   else if(card.type==='halfShield') player.halfShieldCharges = (player.halfShieldCharges||0) + 1;
   else if(card.type==='tollRefund'){
     // instant, like Loan Forgiveness — resolves right here instead of sitting in hand.
@@ -312,7 +317,6 @@ function renderPowerBadges(pid, p){
     p.pooledPaydayCards>0 ? {glyph:'\u{1F4B8}', n:p.pooledPaydayCards, title:'Pooled Payday (team mode)'} : null,
     p.highRiseHustleCards>0 ? {glyph:'\u{1F3D9}\uFE0F', n:p.highRiseHustleCards, title:'Discount — next property purchase 50% off'} : null,
     p.sabotageCards>0 ? {glyph:'\u{1F5E1}\uFE0F', n:p.sabotageCards, title:'Sabotage (team mode)'} : null,
-    p.nudgeCards>0 ? {glyph:'\u{1F449}', n:p.nudgeCards, title:'Short Hop'} : null,
     p.halfShieldCharges>0 ? {glyph:'\u{1F530}', n:p.halfShieldCharges, title:'Half Shield'} : null,
     p.doubleSalaryCards>0 ? {glyph:'\u{1F4B5}', n:p.doubleSalaryCards, title:'Double Salary — fires on their next GO payday'} : null,
     p.loanForgivenessCards>0 ? {glyph:'\u{1F3E6}', n:p.loanForgivenessCards, title:'Loan Forgiveness — fires the moment they owe a bank loan'} : null,
@@ -411,9 +415,8 @@ function powerCardUsable(type, player, isYourTurn){
   if(type==='pooledPayday') return !busy && !player.pooledPaydayArmed;
   if(type==='sabotage') return !busy && !anyPickModeActive();
   if(type==='propertySwap') return !busy && !anyPickModeActive() && propertySwapEligible(player.id);
-  if(type==='nudge') return !busy;
   if(type==='halfShield') return !busy && !awaitingEndTurn && !player.halfShieldArmed;
-  return false; // bankruptcyInsurance/extraRoll/fastForward/skipAhead/tollRefund/theft are never manually played — they fire on their own
+  return false; // bankruptcyInsurance/extraRoll/fastForward/skipAhead/nudge/tollRefund/theft are never manually played — they fire on their own
 }
 function updatePowerCardsButton(){
   const el = document.getElementById('powerCardsBtnLabel');
@@ -455,6 +458,8 @@ function debugDrawPowerCard(type){
   if(def.type==='skipAhead'){
     const spaces = Math.min(39, Math.max(1, Number(CONFIG.skipAheadSpaces) || 5));
     setTimeout(()=>{ moveToken(pid, spaces); }, spd(1000));
+  } else if(def.type==='nudge'){
+    setTimeout(()=>{ moveTokenBack(pid, 3); }, spd(1000));
   } else if(def.type==='extraRoll' && order[turnIdx]===pid && !busy){
     performRoll(pid);
   }
@@ -543,15 +548,6 @@ function renderPowerCardsHub(){
         } else {
           actionsHTML += `<div class="pc-empty-note">No valid opponent to freeze right now.</div>`;
         }
-      } else if(def.type==='nudge'){
-        // targets a small +/- space offset the holder picks, same dropdown
-        // pattern as Rent Doubler/Swap/Property Freeze above — resolves
-        // instantly (no board tap needed), so the modal just closes right away.
-        const optHTML = [-3,-2,-1,1,2,3].map(n=>`<option value="${n}" ${n===1?'selected':''}>${n>0?'+':'−'}${Math.abs(n)} space${Math.abs(n)===1?'':'s'} ${n>0?'forward':'back'}</option>`).join('');
-        actionsHTML += `<div class="pc-actions">
-          <select class="pc-select" id="pcNudgeAmount">${optHTML}</select>
-          <button class="buy-btn yes" ${usable?'':'disabled'} onclick="const __n=parseInt(document.getElementById('pcNudgeAmount').value);useNudgeCard(__n);closePowerCards();">Use</button>
-        </div>`;
       } else if(POWER_CARD_USE_FN[def.type]){
         const fn = POWER_CARD_USE_FN[def.type];
         const closesModal = (def.type==='teleport'||def.type==='sabotage'||def.type==='propertySwap');
