@@ -8,10 +8,6 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700;800&family=Inter:wght@400;500;600;700&family=Alfa+Slab+One&family=Roboto+Slab:wght@400;500;600;700;800&family=Baloo+2:wght@500;600;700;800&family=Nunito:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/styles.css">
-<!-- Chrome layer: buttons, control deck, topbar, panels. Loaded second so its
-     [data-theme] .foo rules win on source order over styles.css's
-     [data-theme="skyline"] .foo rules at equal specificity. -->
-<link rel="stylesheet" href="css/ui.css">
 <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 <script type="module" src="https://unpkg.com/@google/model-viewer@3.5.0/dist/model-viewer.min.js"></script>
 <script src="js/lib-loader.js"></script>
@@ -572,55 +568,19 @@
         <div class="brand-name" id="topbarBrandName">bankroll<span>.game</span></div>
       </div>
       <div class="you-are" id="youAreBar">You are: <span id="youAreName">Player 1</span></div>
-
-      <!-- Right cluster. Only context-sensitive things live out here now
-           (spectators / summary, which appear conditionally); every persistent
-           utility moved behind the gear so the top edge stays clear of the
-           floating player panel below it. -->
-      <div class="topbar-right">
+      <div style="display:flex;gap:6px;align-items:center;">
+        <div class="reset-btn sound-ctrl" id="soundBtn" title="Sound volume">
+          <button class="sound-mute-btn" id="soundMuteBtn" onclick="toggleTurnSound()" title="Mute/unmute sound"><span id="soundMuteIcon">&#128266;</span></button>
+          <input type="range" class="sound-volume-slider" id="soundVolumeSlider" min="0" max="100" value="100" step="1" oninput="setTurnSoundVolume(this.value)" title="Sound volume">
+          <span class="sound-volume-label" id="soundVolumeLabel">100%</span>
+        </div>
+        <button class="reset-btn" id="camZoomBtn" onclick="toggleCameraPulse()" title="Nudge the camera toward the active player at the start of their turn">&#128269; <span id="camZoomBtnLabel">Turn zoom: off</span></button>
+        <button class="reset-btn" id="speedBtn" onclick="toggleGameSpeed()" title="Toggle 2x game speed">&#9193; <span id="speedBtnLabel">Speed: 1x</span></button>
+        <button class="reset-btn" onclick="resetView()">&#8635; Reset camera</button>
+        <button class="reset-btn" onclick="cycleGameTheme()" title="Switch board theme">&#127912; <span id="topbarThemeLabel">Theme: Modern</span></button>
         <button class="reset-btn" id="spectatorsBtn" onclick="toggleSpectatorsPanel()" title="People who joined mid-game and are waiting to play" style="display:none;">&#128065; <span id="spectatorsBtnLabel">Spectators (0)</span></button>
         <button class="reset-btn" id="gameOverBtn" onclick="openGameOverSummary()" title="View the end-of-game summary" style="display:none;">&#127942; Summary</button>
-
-        <div class="ui-menu-wrap">
-          <button class="btn-tool is-icon" id="settingsMenuBtn" onclick="toggleSettingsMenu(event)" title="Settings" aria-haspopup="true" aria-expanded="false">&#9881;</button>
-          <div class="ui-menu" id="settingsMenu" role="menu">
-            <div class="ui-menu-label">Sound</div>
-            <div class="sound-ctrl" id="soundBtn">
-              <button class="sound-mute-btn" id="soundMuteBtn" onclick="toggleTurnSound()" title="Mute or unmute"><span id="soundMuteIcon">&#128266;</span></button>
-              <input type="range" class="sound-volume-slider" id="soundVolumeSlider" min="0" max="100" value="100" step="1" oninput="setTurnSoundVolume(this.value)" title="Volume">
-              <span class="sound-volume-label" id="soundVolumeLabel">100%</span>
-            </div>
-
-            <div class="ui-menu-sep"></div>
-            <div class="ui-menu-label">Game</div>
-            <button class="ui-menu-item" id="speedBtn" onclick="toggleGameSpeed()" role="menuitem">
-              <span class="mi-icon">&#9193;</span>Game speed<span class="mi-val" id="speedBtnLabel">1x</span>
-            </button>
-            <button class="ui-menu-item" id="camZoomBtn" onclick="toggleCameraPulse()" role="menuitem">
-              <span class="mi-icon">&#128269;</span>Follow active player<span class="mi-val" id="camZoomBtnLabel">Off</span>
-            </button>
-            <button class="ui-menu-item" onclick="cycleGameTheme()" role="menuitem">
-              <span class="mi-icon">&#127912;</span>Board theme<span class="mi-val" id="topbarThemeLabel">Modern</span>
-            </button>
-
-            <div class="ui-menu-sep"></div>
-            <div class="ui-menu-label">View</div>
-            <button class="ui-menu-item" onclick="resetView()" role="menuitem">
-              <span class="mi-icon">&#8635;</span>Reset camera
-            </button>
-            <button class="ui-menu-item" id="fullscreenBtn" onclick="toggleFullscreen()" role="menuitem">
-              <span class="mi-icon">&#9974;</span><span id="fullscreenBtnLabel">Fullscreen</span>
-            </button>
-            <button class="ui-menu-item" id="keyHintsBtn" onclick="showKeyHintsToast()" role="menuitem">
-              <span class="mi-icon">&#9000;</span>Keyboard shortcuts
-            </button>
-
-            <div class="ui-menu-sep"></div>
-            <button class="ui-menu-item" onclick="confirmBackToMenu()" role="menuitem" style="color:var(--pink);">
-              <span class="mi-icon">&#8592;</span><span id="menuBtnLabel">End game</span>
-            </button>
-          </div>
-        </div>
+        <button class="reset-btn" onclick="confirmBackToMenu()" title="Return to the main menu">&#8592; <span id="menuBtnLabel">End game</span></button>
       </div>
     </div>
 
@@ -644,41 +604,25 @@
           <button class="reaction-btn" onclick="sendReaction('🎉')" title="React">🎉</button>
         </div>
       </div>
-      <!-- CONTROL DECK — three zones instead of one undifferentiated row.
-           status (what's happening) | action (the one thing to press) | tools
-           (everything optional). The buy prompt is a decision, not a tool, so
-           it gets promoted to its own full-width strip above the zones. -->
       <div class="board-controls">
-
+        <button class="roll-btn" id="rollBtn" onclick="rollDice()">Roll dice<span class="key-hint">Space</span></button>
+        <button class="roll-btn" id="bailBtn" onclick="payBail()" style="background:var(--gold);color:#241d05;display:none;">Pay $100 bail<span class="key-hint">R</span></button>
+        <button class="roll-btn" id="teleportCancelBtn" onclick="cancelTeleportPick()" style="background:var(--pink);color:#2a0a17;display:none;">Cancel teleport<span class="key-hint">X</span></button>
+        <button class="roll-btn" id="sabotageCancelBtn" onclick="cancelSabotagePick()" style="background:var(--pink);color:#2a0a17;display:none;">Cancel sabotage<span class="key-hint">X</span></button>
+        <button class="roll-btn" id="propertySwapCancelBtn" onclick="cancelPropertySwapPick()" style="background:var(--pink);color:#2a0a17;display:none;">Cancel property swap<span class="key-hint">X</span></button>
+        <button class="roll-btn" id="endTurnBtn" onclick="playerEndTurn()" style="background:var(--pink);color:#2a0a17;display:none;">End turn<span class="key-hint">Space</span></button>
         <div class="buy-inline" id="buyPanel">
           <span class="buy-inline-info">&#127970; <b id="bpName">—</b> &middot; <b id="bpPrice">—</b></span>
           <button class="buy-btn yes" id="buyYesBtn" onclick="buyDecision(true)">Buy<span class="key-hint">Space</span></button>
           <button class="buy-btn no" id="buyNoBtn" onclick="buyDecision(false)">&#128176; Send to auction<span class="key-hint">A</span></button>
         </div>
-
-        <div class="deck-status">
-          <div class="roll-result" id="rollResult">Delta's turn — roll the dice</div>
-          <span class="turn-timer-badge" id="turnTimerBadge"></span>
-        </div>
-
-        <!-- Only ever one of these is visible at a time, and they share one
-             footprint, so the deck never reflows as the turn progresses. -->
-        <div class="deck-action">
-          <button class="roll-btn btn-primary" id="rollBtn" onclick="rollDice()">Roll dice<span class="key-hint">Space</span></button>
-          <button class="roll-btn btn-primary is-warn" id="bailBtn" onclick="payBail()" style="display:none;">Pay $100 bail<span class="key-hint">R</span></button>
-          <button class="roll-btn btn-primary is-exit" id="endTurnBtn" onclick="playerEndTurn()" style="display:none;">End turn<span class="key-hint">Space</span></button>
-          <button class="roll-btn btn-primary is-exit" id="teleportCancelBtn" onclick="cancelTeleportPick()" style="display:none;">Cancel teleport<span class="key-hint">X</span></button>
-          <button class="roll-btn btn-primary is-exit" id="sabotageCancelBtn" onclick="cancelSabotagePick()" style="display:none;">Cancel sabotage<span class="key-hint">X</span></button>
-          <button class="roll-btn btn-primary is-exit" id="propertySwapCancelBtn" onclick="cancelPropertySwapPick()" style="display:none;">Cancel swap<span class="key-hint">X</span></button>
-        </div>
-
-        <div class="deck-tools">
-          <button class="roll-btn btn-tool" id="powerCardsBtn" onclick="openPowerCards()" title="View, use, trade, or relay your power cards">&#127183; <span class="btn-text" id="powerCardsBtnLabel">Cards</span><span class="key-hint">C</span></button>
-          <button class="roll-btn btn-tool" id="auctionBtn" onclick="toggleAuctionPanel()" style="display:none;" title="Open the auction panel">&#128176; <span class="btn-text">Auction</span></button>
-          <button class="roll-btn btn-tool" id="loanBtn" onclick="toggleLoanPanel()" style="display:none;" title="Borrow from or repay the bank">&#127974; <span class="btn-text">Loan</span></button>
-          <button class="roll-btn btn-tool" id="sideBetBtn" onclick="toggleSideBetPanel()" style="display:none;" title="Place a side bet on this roll">&#127922; <span class="btn-text">Side bet</span></button>
-          <button class="roll-btn btn-tool" id="autoPlayBtn" onclick="toggleAutoPlay()" title="Auto-play your turns: rolls, buys what you land on, and pays bail for you">&#129302; <span class="btn-text" id="autoPlayBtnLabel">Auto</span><span class="key-hint">Z</span></button>
-        </div>
+        <div class="roll-result" id="rollResult">Delta's turn — roll the dice</div>
+        <span class="turn-timer-badge" id="turnTimerBadge"></span>
+        <button class="roll-btn" id="auctionBtn" onclick="toggleAuctionPanel()" style="background:var(--violet);color:#1c1533;display:none;">&#128176; Auction</button>
+        <button class="roll-btn" id="loanBtn" onclick="toggleLoanPanel()" style="background:var(--gold);color:#241d05;display:none;">&#127974; Loan</button>
+        <button class="roll-btn" id="sideBetBtn" onclick="toggleSideBetPanel()" style="background:#c58af0;color:#1c0a2e;display:none;">&#127922; Side bet</button>
+        <button class="roll-btn" id="autoPlayBtn" onclick="toggleAutoPlay()" title="Rolls, buys anything you land on, and pays bail automatically on your turns — handy for blowing through the slow early buying phase">&#129302; <span id="autoPlayBtnLabel">Auto: off</span><span class="key-hint">Z</span></button>
+        <button class="roll-btn" id="powerCardsBtn" onclick="openPowerCards()" style="background:var(--cyan);color:#04231f;" title="View, use, trade, or relay your power cards">&#127183; <span id="powerCardsBtnLabel">Cards</span><span class="key-hint">C</span></button>
       </div>
       <div class="buy-panel" id="buyoutPanel">
         <div class="bp-info">Buy <b id="buyoutName">—</b> from <b id="buyoutOwner">—</b>?<br>Price: <b id="buyoutPrice">—</b></div>
@@ -729,6 +673,10 @@
         </div>
       </div>
 
+      <div class="bottom-btns">
+        <div class="bb" id="fullscreenBtn" onclick="toggleFullscreen()">&#9974; <span id="fullscreenBtnLabel">Fullscreen</span></div>
+        <div class="bb" id="keyHintsBtn" onclick="showKeyHintsToast()" title="Space roll/end turn · Q buy · A auction/decline · R bail · X cancel · C cards · Z auto-play — all left-hand, no reaching for Enter or the arrows">&#9000; Controls</div>
+      </div>
     </div>
   </div>
 </div>

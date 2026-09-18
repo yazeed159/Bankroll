@@ -423,9 +423,7 @@ function updatePowerCardsButton(){
   if(!el) return;
   const p = players[youAre];
   const total = p ? POWER_CARDS.reduce((s,def)=>s+(p[CARD_FIELD[def.type]]||0),0) : 0;
-  // label stays constant; the count is a badge so the button never changes
-  // width as cards come and go (see .btn-count in ui.css)
-  el.innerHTML = total>0 ? `Cards<span class="btn-count">${total}</span>` : 'Cards';
+  el.textContent = total>0 ? `Cards (${total})` : 'Cards';
 }
 function refreshPowerCardsIfOpen(){
   const ov = document.getElementById('powerCardsOverlay');

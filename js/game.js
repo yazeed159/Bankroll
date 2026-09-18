@@ -2238,10 +2238,8 @@ function setAutoPlayEnabled(on){
   autoPlayEnabled = on;
   const btn = document.getElementById('autoPlayBtn');
   const label = document.getElementById('autoPlayBtnLabel');
-  if(label) label.textContent = 'Auto';
-  // state now reads from the button's fill (.is-on), not a text suffix — see
-  // .btn-tool.is-on in ui.css. 'auto-on' kept for any existing theme styling.
-  if(btn){ btn.classList.toggle('auto-on', on); btn.classList.toggle('is-on', on); }
+  if(label) label.textContent = on ? 'Auto: on' : 'Auto: off';
+  if(btn) btn.classList.toggle('auto-on', on);
   if(on && !autoPlayTimer) autoPlayTick();
   if(!on && autoPlayTimer){ clearTimeout(autoPlayTimer); autoPlayTimer = null; }
 }
@@ -2623,8 +2621,7 @@ function applySpeedUI(){
   const btn = document.getElementById('speedBtn');
   if(!btn) return;
   const lbl = document.getElementById('speedBtnLabel');
-  if(lbl) lbl.textContent = CONFIG.speedX2Enabled ? '2x' : '1x';
-  btn.classList.toggle('is-on', !!CONFIG.speedX2Enabled);
+  if(lbl) lbl.textContent = 'Speed: ' + (CONFIG.speedX2Enabled ? '2x' : '1x');
   const canToggle = !(NET.online && !NET.host);
   btn.disabled = !canToggle;
   btn.title = canToggle ? 'Toggle 2x game speed' : 'Only the host can change game speed';
@@ -4283,9 +4280,7 @@ let cameraPulseEnabled = false;
 function toggleCameraPulse(){
   cameraPulseEnabled = !cameraPulseEnabled;
   const lbl = document.getElementById('camZoomBtnLabel');
-  if(lbl) lbl.textContent = cameraPulseEnabled ? 'On' : 'Off';
-  const cbtn = document.getElementById('camZoomBtn');
-  if(cbtn) cbtn.classList.toggle('is-on', cameraPulseEnabled);
+  if(lbl) lbl.textContent = 'Turn zoom: ' + (cameraPulseEnabled ? 'on' : 'off');
 }
 
 function playTurnChime(){
@@ -5404,7 +5399,7 @@ function syncFullscreenLabel(){
   const label = document.getElementById('fullscreenBtnLabel');
   if(!label) return;
   const active = !!getFsElement() || document.body.classList.contains('pseudo-fullscreen');
-  label.textContent = active ? 'Exit fullscreen' : 'Fullscreen';
+  label.textContent = active ? 'Exit Fullscreen' : 'Fullscreen';
 }
 function toggleFullscreen(){
   // fallback mode already active — just turn it off
