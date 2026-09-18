@@ -3470,3 +3470,40 @@ body.speed-x2 [data-theme="hearthside"] .gb-die-cube{transition-duration:.75s;}
 body.speed-x2 [data-theme="skyline"] .token-wrap,
 body.speed-x2 [data-theme="classic"] .token-wrap,
 body.speed-x2 [data-theme="hearthside"] .token-wrap{transition-duration:.19s;}
+
+/* ===== settings popover (shared across all themes) =====================
+   Holds the utilities that used to sit as loose buttons in the topbar.
+   Anchored in the topbar's LEFT cluster on purpose — the top-right is where
+   the floating player-cards panel renders, so a menu there overlaps it.
+   Styled off the theme vars so it matches whichever skin is active. */
+.ui-menu-wrap{position:relative;display:inline-flex;}
+#settingsMenuBtn{font-size:15px;line-height:1;}
+.ui-menu{
+  position:absolute;top:calc(100% + 6px);left:0;z-index:60;
+  width:230px;padding:6px;
+  background:var(--panel);border:1px solid var(--line);
+  border-radius:var(--radius-md);
+  box-shadow:var(--shadow-lift);
+  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  display:none;
+}
+.ui-menu.show{display:block;}
+.ui-menu-sep{height:1px;background:var(--line);margin:5px 3px;opacity:.7;}
+.ui-menu-label{
+  font-size:10px;font-weight:700;letter-spacing:.4px;
+  color:var(--text-dim);padding:5px 7px 3px;
+}
+.ui-menu-item{
+  display:flex;align-items:center;gap:9px;width:100%;
+  padding:8px 8px;background:transparent;border:none;
+  border-radius:calc(var(--radius-md) - 5px);
+  color:var(--text);font-family:inherit;font-size:12.5px;font-weight:600;
+  cursor:pointer;text-align:left;transition:.13s;
+}
+.ui-menu-item:hover{background:rgba(255,255,255,.07);}
+.ui-menu-item .mi-icon{width:18px;flex-shrink:0;text-align:center;font-size:13px;opacity:.85;}
+.ui-menu .sound-ctrl{
+  display:flex;align-items:center;gap:8px;
+  padding:7px 8px;background:transparent;border:none;
+}
+.ui-menu .sound-volume-slider{flex:1;width:auto;}

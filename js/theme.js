@@ -56,3 +56,45 @@ function cycleGameTheme(){
   try{ saved = localStorage.getItem(THEME_STORAGE_KEY); }catch(e){}
   applyTheme(saved && THEMES[saved] ? saved : 'skyline');
 })();
+
+/* ===== settings popover =====================================================
+   Every persistent utility (sound, speed, camera follow, theme, fullscreen,
+   shortcuts, end game) used to sit as its own button in the topbar, which both
+   crowded the top edge and collided with the floating player panel underneath.
+   They now live in one popover behind a single gear. Closes on outside click,
+   on Escape, and on any activation inside it EXCEPT the sound row (where you
+   expect to drag the volume slider and keep the menu open). ==================*/
+function toggleSettingsMenu(ev){
+  if(ev) ev.stopPropagation();
+  const menu = document.getElementById('settingsMenu');
+  const btn  = document.getElementById('settingsMenuBtn');
+  if(!menu) return;
+  const open = !menu.classList.contains('show');
+  menu.classList.toggle('show', open);
+  if(btn){
+    btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    btn.classList.toggle('is-on', open);
+  }
+}
+function closeSettingsMenu(){
+  const menu = document.getElementById('settingsMenu');
+  const btn  = document.getElementById('settingsMenuBtn');
+  if(menu) menu.classList.remove('show');
+  if(btn){ btn.setAttribute('aria-expanded','false'); btn.classList.remove('is-on'); }
+}
+window.toggleSettingsMenu = toggleSettingsMenu;
+window.closeSettingsMenu  = closeSettingsMenu;
+document.addEventListener('click', e=>{
+  const menu = document.getElementById('settingsMenu');
+  if(!menu || !menu.classList.contains('show')) return;
+  const insideMenu = menu.contains(e.target);
+  const onButton   = !!e.target.closest('#settingsMenuBtn');
+  if(onButton) return;                                   // its own handler toggles
+  if(!insideMenu){ closeSettingsMenu(); return; }
+  // inside: close after picking an action, but leave it open for volume drags
+  if(e.target.closest('.sound-ctrl')) return;
+  if(e.target.closest('.ui-menu-item')) closeSettingsMenu();
+});
+document.addEventListener('keydown', e=>{
+  if(e.key === 'Escape') closeSettingsMenu();
+});

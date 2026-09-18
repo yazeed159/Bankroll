@@ -568,20 +568,43 @@
         <div class="brand-name" id="topbarBrandName">bankroll<span>.game</span></div>
       </div>
       <div class="you-are" id="youAreBar">You are: <span id="youAreName">Player 1</span></div>
-      <div style="display:flex;gap:6px;align-items:center;">
-        <div class="reset-btn sound-ctrl" id="soundBtn" title="Sound volume">
-          <button class="sound-mute-btn" id="soundMuteBtn" onclick="toggleTurnSound()" title="Mute/unmute sound"><span id="soundMuteIcon">&#128266;</span></button>
-          <input type="range" class="sound-volume-slider" id="soundVolumeSlider" min="0" max="100" value="100" step="1" oninput="setTurnSoundVolume(this.value)" title="Sound volume">
-          <span class="sound-volume-label" id="soundVolumeLabel">100%</span>
+
+      <!-- Utilities live behind this gear. It sits here in the LEFT cluster on
+           purpose: the top-right is where the floating player-cards panel
+           renders, so anything placed there overlaps it. -->
+      <div class="ui-menu-wrap">
+        <button class="reset-btn" id="settingsMenuBtn" onclick="toggleSettingsMenu(event)" title="Settings" aria-haspopup="true" aria-expanded="false">&#9881;</button>
+        <div class="ui-menu" id="settingsMenu" role="menu">
+          <div class="ui-menu-label">Sound</div>
+          <div class="sound-ctrl" id="soundBtn">
+            <button class="sound-mute-btn" id="soundMuteBtn" onclick="toggleTurnSound()" title="Mute or unmute"><span id="soundMuteIcon">&#128266;</span></button>
+            <input type="range" class="sound-volume-slider" id="soundVolumeSlider" min="0" max="100" value="100" step="1" oninput="setTurnSoundVolume(this.value)" title="Volume">
+            <span class="sound-volume-label" id="soundVolumeLabel">100%</span>
+          </div>
+
+          <div class="ui-menu-sep"></div>
+          <button class="ui-menu-item" id="speedBtn" onclick="toggleGameSpeed()" role="menuitem">
+            <span class="mi-icon">&#9193;</span><span id="speedBtnLabel">Speed: 1x</span>
+          </button>
+          <button class="ui-menu-item" id="camZoomBtn" onclick="toggleCameraPulse()" role="menuitem">
+            <span class="mi-icon">&#128269;</span><span id="camZoomBtnLabel">Turn zoom: off</span>
+          </button>
+          <button class="ui-menu-item" onclick="cycleGameTheme()" role="menuitem">
+            <span class="mi-icon">&#127912;</span><span id="topbarThemeLabel">Theme: Modern</span>
+          </button>
+          <button class="ui-menu-item" onclick="resetView()" role="menuitem">
+            <span class="mi-icon">&#8635;</span>Reset camera
+          </button>
+
+          <div class="ui-menu-sep"></div>
+          <button class="ui-menu-item" onclick="confirmBackToMenu()" role="menuitem" style="color:var(--pink);">
+            <span class="mi-icon">&#8592;</span><span id="menuBtnLabel">End game</span>
+          </button>
         </div>
-        <button class="reset-btn" id="camZoomBtn" onclick="toggleCameraPulse()" title="Nudge the camera toward the active player at the start of their turn">&#128269; <span id="camZoomBtnLabel">Turn zoom: off</span></button>
-        <button class="reset-btn" id="speedBtn" onclick="toggleGameSpeed()" title="Toggle 2x game speed">&#9193; <span id="speedBtnLabel">Speed: 1x</span></button>
-        <button class="reset-btn" onclick="resetView()">&#8635; Reset camera</button>
-        <button class="reset-btn" onclick="cycleGameTheme()" title="Switch board theme">&#127912; <span id="topbarThemeLabel">Theme: Modern</span></button>
-        <button class="reset-btn" id="spectatorsBtn" onclick="toggleSpectatorsPanel()" title="People who joined mid-game and are waiting to play" style="display:none;">&#128065; <span id="spectatorsBtnLabel">Spectators (0)</span></button>
-        <button class="reset-btn" id="gameOverBtn" onclick="openGameOverSummary()" title="View the end-of-game summary" style="display:none;">&#127942; Summary</button>
-        <button class="reset-btn" onclick="confirmBackToMenu()" title="Return to the main menu">&#8592; <span id="menuBtnLabel">End game</span></button>
       </div>
+
+      <button class="reset-btn" id="spectatorsBtn" onclick="toggleSpectatorsPanel()" title="People who joined mid-game and are waiting to play" style="display:none;">&#128065; <span id="spectatorsBtnLabel">Spectators (0)</span></button>
+      <button class="reset-btn" id="gameOverBtn" onclick="openGameOverSummary()" title="View the end-of-game summary" style="display:none;">&#127942; Summary</button>
     </div>
 
     <div class="board-wrap">
