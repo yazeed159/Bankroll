@@ -161,7 +161,7 @@
    Deliberately quieter than the big centered card-draw flash (kept for cards,
    tax, jail-sentencing, and going into the red) so the two never compete for
    attention — this lives lower on screen, near the dice, and clears itself. */
-.toast-stack{position:fixed;left:50%;bottom:128px;transform:translateX(-50%);z-index:1;display:flex;flex-direction:column-reverse;align-items:center;gap:6px;pointer-events:none;width:min(92vw,360px);}
+.toast-stack{position:fixed;left:50%;bottom:128px;transform:translateX(-50%);z-index:250;display:flex;flex-direction:column-reverse;align-items:center;gap:6px;pointer-events:none;width:min(92vw,360px);}
 .toast-pill{display:flex;align-items:center;gap:8px;background:var(--panel,#14141f);border:1px solid var(--line,rgba(255,255,255,.12));color:var(--text,#f6f6fc);border-radius:14px;padding:8px 14px;font-size:12.5px;font-weight:600;font-family:"Inter",sans-serif;line-height:1.3;box-shadow:0 6px 18px rgba(0,0,0,.32);opacity:0;transform:translateY(10px) scale(.95);transition:opacity .25s ease,transform .25s ease;max-width:100%;}
 .toast-pill.show{opacity:1;transform:translateY(0) scale(1);}
 .toast-pill.leaving{opacity:0;transform:translateY(-8px) scale(.96);}
@@ -3448,28 +3448,15 @@ body.spectator-mode #powerCardsBtn{display:none !important;}
 .reset-btn:disabled{cursor:not-allowed;opacity:.55;}
 
 /* ---- 2x game speed (host-toggleable, see toggleGameSpeed()/spd() in JS) ----
-   spd() itself halves the JS-side pacing delays (dice wait, token step interval,
-   card-popup hold time); this block halves the matching CSS-driven durations —
-   the dice cube's tumble/spin/hop and the token's per-tile glide — that JS can't
-   reach directly. One extra class (body.speed-x2) on every selector keeps these
-   above the per-theme 1x rules regardless of where those happen to sit in the
-   file, so this block is safe to append anywhere and never needs to move if the
-   theme rules above it are edited later. */
-body.speed-x2 [data-theme="skyline"] .gb-die-shadow.rolling,
-body.speed-x2 [data-theme="classic"] .gb-die-shadow.rolling,
-body.speed-x2 [data-theme="hearthside"] .gb-die-shadow.rolling{animation-duration:.75s;}
-body.speed-x2 [data-theme="skyline"] .gb-die-jump.rolling,
-body.speed-x2 [data-theme="classic"] .gb-die-jump.rolling,
-body.speed-x2 [data-theme="hearthside"] .gb-die-jump.rolling{animation-duration:.75s;}
-body.speed-x2 [data-theme="skyline"] .die.rolling,
-body.speed-x2 [data-theme="classic"] .die.rolling,
-body.speed-x2 [data-theme="hearthside"] .die.rolling{animation-duration:.25s;}
-body.speed-x2 [data-theme="skyline"] .gb-die-cube,
-body.speed-x2 [data-theme="classic"] .gb-die-cube,
-body.speed-x2 [data-theme="hearthside"] .gb-die-cube{transition-duration:.75s;}
-body.speed-x2 [data-theme="skyline"] .token-wrap,
-body.speed-x2 [data-theme="classic"] .token-wrap,
-body.speed-x2 [data-theme="hearthside"] .token-wrap{transition-duration:.19s;}
+   Nothing needed here any more: spd() halves the JS-side delays, and
+   initAnimationSpeed() (game.js) doubles the playbackRate of every finite CSS
+   animation/transition the moment it starts while CONFIG.speedX2Enabled is on
+   (dice tumble/hop/shadow, token glide + hop, balance pops, card/toast fades...).
+
+   The old per-property overrides that lived here never matched anything:
+   they were written as `body.speed-x2 [data-theme="..."] .x`, but data-theme
+   sits on <html> (an ANCESTOR of body), so a descendant selector under body
+   could never hit. Don't reintroduce them — new animations get 2x for free. */
 
 /* ===== settings popover (shared across all themes) =====================
    Holds the utilities that used to sit as loose buttons in the topbar.

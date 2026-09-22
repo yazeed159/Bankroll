@@ -1746,7 +1746,7 @@ function rollBalance(pid, el, newVal){
     el.classList.remove('rolling-up','rolling-down');
     void el.offsetWidth; // restart the CSS pop animation even if the same class was just applied
     el.classList.add(goingUp ? 'rolling-up' : 'rolling-down');
-    const duration = Math.min(900, Math.max(300, Math.abs(finalVal-startVal)*1.1));
+    const duration = spd(Math.min(900, Math.max(300, Math.abs(finalVal-startVal)*1.1)));
     const t0 = performance.now();
     function step(now){
       const t = Math.min(1, (now-t0)/duration);
@@ -2267,7 +2267,7 @@ function autoPlayTick(){
     const btn = autoPlayClickable('bailBtn') || autoPlayClickable('buyYesBtn') || autoPlayClickable('rollBtn') || autoPlayClickable('endTurnBtn');
     if(btn) btn.click();
   }
-  autoPlayTimer = setTimeout(autoPlayTick, AUTO_PLAY_TICK_MS);
+  autoPlayTimer = setTimeout(autoPlayTick, spd(AUTO_PLAY_TICK_MS));
 }
 
 /* the sidebar's "⌨ Controls" pill has a hover title with the full shortcut
@@ -2622,10 +2622,38 @@ function applySpeedUI(){
   if(!btn) return;
   const lbl = document.getElementById('speedBtnLabel');
   if(lbl) lbl.textContent = 'Speed: ' + (CONFIG.speedX2Enabled ? '2x' : '1x');
-  const canToggle = !(NET.online && !NET.host);
+  const canToggle = !(typeof NET !== 'undefined' && NET.online && !NET.host);
   btn.disabled = !canToggle;
   btn.title = canToggle ? 'Toggle 2x game speed' : 'Only the host can change game speed';
 }
+/* Doubles the playbackRate of every finite CSS animation/transition as it starts
+   while 2x is on — the dice cube tumble/hop/shadow, token glide and hop, balance
+   pops, popup fades, camera pulse, and anything added later — so their durations
+   stay in step with the spd()-halved JS delays around them. (The old approach —
+   per-property duration overrides in styles.css — never matched: data-theme lives
+   on <html>, so `body.speed-x2 [data-theme=...] .x` could not hit anything.)
+   Infinite ambient loops (idle bob, wheel spin, driving wobble) are left alone.
+   Animations already running when the setting flips just finish at their old
+   pace; the next one picks up the new rate. */
+function speedUpAnimations(e){
+  if(!CONFIG.speedX2Enabled) return;
+  const el = e.target;
+  if(!el || typeof el.getAnimations !== 'function') return;
+  for(const a of el.getAnimations()){
+    if(a.playbackRate !== 1) continue;
+    const t = a.effect && a.effect.getComputedTiming ? a.effect.getComputedTiming() : null;
+    if(!t || t.iterations === Infinity) continue;
+    a.playbackRate = 2;
+  }
+}
+function initAnimationSpeed(){
+  // capture phase: these events bubble, but capturing on document also covers
+  // elements that stop propagation. 'transitionrun' fires when a transition is created.
+  document.addEventListener('animationstart', speedUpAnimations, true);
+  document.addEventListener('transitionrun', speedUpAnimations, true);
+}
+initAnimationSpeed();
+
 function moveToken(pid, steps){
   const player = players[pid];
   let remaining = steps;
@@ -4835,6 +4863,7 @@ function playDiceSound(){
     if(!__diceAudioEl) __diceAudioEl = new Audio(__diceSoundDataUri);
     const el = __diceAudioEl.cloneNode(true); // clone so overlapping rolls don't cut each other off
     el.volume = 0.35 * (turnSoundEnabled ? turnSoundVolume : 0);
+    el.playbackRate = CONFIG.speedX2Enabled ? 2 : 1; // the roll lands in half the time at 2x — the clip should too
     el.play().catch(()=>{ /* autoplay may be blocked until user interacts — fail silently */ });
   }catch(e){ /* audio not available — fail silently */ }
 }
@@ -5263,8 +5292,8 @@ function pulseCameraToActivePlayer(pid){
   __camPulseTimer = setTimeout(()=>{
     gbScale = baseScale; gbPanX = basePanX; gbPanY = basePanY;
     gbApplyTransform();
-    __camPulseTimer = setTimeout(()=>{ boardView.style.transition=''; }, 550);
-  }, 850);
+    __camPulseTimer = setTimeout(()=>{ boardView.style.transition=''; }, spd(550));
+  }, spd(850));
 }
 
 let dragMoved = false; // true once a pointerdown turns into an actual drag — tells tile
